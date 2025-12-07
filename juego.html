@@ -161,335 +161,347 @@
     </div>
 
     <script>
-        // --- MOTOR DE AUDIO AVANZADO (SCHMITT TRIGGER) ---
-        let audioContext, analyser, microphone, dataArray;
-        let isListening = false;
-        let score = 0;
-        let audioState = 'WAITING_FOR_PEAK'; // Estados: WAITING_FOR_PEAK, WAITING_FOR_RESET
+      // --- MOTOR DE AUDIO ULTRA-RÁPIDO (TRANSIENT DETECTION) ---
+    let audioContext, analyser, microphone, dataArray;
+    let isListening = false;
+    let score = 0;
+    
+    // Variables del algoritmo de detección
+    let lastVolume = 0;
+    let lastHitTime = 0;
+    let minTimeBetweenHits = 90; // ms (90ms permite ~11 golpes/segundo. Bajalo a 70 si eres Flash)
+    let triggerThreshold = 30;   // Se actualiza con el slider (Representa la FUERZA de la subida, no el volumen total)
+
+    async function initAudio() {
+        if (audioContext) return;
+        try {
+            // CAMBIO CLAVE 1: Desactivar el procesamiento de voz de Android
+            const constraints = {
+                audio: {
+                    echoCancellation: false,
+                    autoGainControl: false,
+                    noiseSuppression: false,
+                    latency: 'interactive'
+                }
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+            analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            
+            // Filtro Paso Alto: Elimina ruidos graves (motores, viento) y deja los golpes agudos (pop)
+            const filter = audioContext.createBiquadFilter();
+            filter.type = "highpass";
+            filter.frequency.value = 500; // Solo frecuencias por encima de 500Hz
+            
+            microphone.connect(filter);
+            filter.connect(analyser);
+            
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            detectVolumeLoop();
+        } catch (err) {
+            alert("Error de micrófono. Asegúrate de usar HTTPS o localhost.");
+            console.error(err);
+        }
+    }
+
+    function detectVolumeLoop() {
+        if (!analyser) return;
+        requestAnimationFrame(detectVolumeLoop);
+        analyser.getByteFrequencyData(dataArray);
+
+        // 1. Calcular energía instantánea
+        let sum = 0;
+        // Solo analizamos frecuencias medias/altas (donde suena el 'clack' de la bola)
+        for(let i = 10; i < dataArray.length; i++) sum += dataArray[i];
+        let currentVolume = sum / (dataArray.length - 10);
+
+        // 2. Calcular "Slope" (Diferencia con el frame anterior)
+        // Esto detecta el IMPACTO, no el ruido constante.
+        let slope = currentVolume - lastVolume; 
         
-        // Configuración de calibración
-        let triggerThreshold = 40; // Se actualiza con el slider
-        let resetThreshold = 20;   // Se calcula automáticamente (ej. 50% del trigger)
+        // Visualización (opcional, para calibrar)
+        // Multiplicamos slope para que sea visible en la barra
+        updateCalibrationUI(Math.max(0, slope * 4)); 
+        const gameBar = document.getElementById('mic-level-game');
+        if(gameBar) gameBar.style.width = Math.min(currentVolume * 2, 100) + '%';
+
+        // 3. Lógica de Disparo (Transient + Cooldown)
+        let now = Date.now();
         
-        async function initAudio() {
-            if (audioContext) return;
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                microphone = audioContext.createMediaStreamSource(stream);
-                microphone.connect(analyser);
-                analyser.fftSize = 256;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-                detectVolumeLoop();
-            } catch (err) {
-                alert("Necesitas dar permiso al micrófono.");
-            }
+        // Si la subida repentina (slope) es mayor que el umbral Y ha pasado el tiempo de espera
+        if (isListening && slope > triggerThreshold && (now - lastHitTime > minTimeBetweenHits)) {
+            registerHit();
+            lastHitTime = now;
         }
 
-        function detectVolumeLoop() {
-            if (!analyser) return;
-            requestAnimationFrame(detectVolumeLoop);
-            analyser.getByteFrequencyData(dataArray);
+        // Guardamos volumen para la siguiente comparación
+        // Usamos un factor de caída suave para que 'lastVolume' no baje instantáneamente
+        // Esto ayuda a evitar rebotes en la misma onda de sonido
+        lastVolume = currentVolume; 
+    }
 
-            // Calcular volumen RMS para mayor precisión que el promedio simple
-            let sum = 0;
-            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i] * dataArray[i];
-            let rms = Math.sqrt(sum / dataArray.length);
+    function updateCalibrationUI(val) {
+        const bar = document.getElementById('mic-level');
+        if (bar && document.getElementById('screen-main').classList.contains('active')) {
+            bar.style.width = Math.min(val, 100) + '%';
             
-            // Escalar RMS a 0-100 aprox para facilitar UI
-            let vol = Math.min(rms * 1.5, 100); 
+            // Ajustar umbral con el slider
+            const sliderVal = parseInt(document.getElementById('sensitivity').value);
+            // Invertimos lógica visual: Slider alto = Más sensible (umbral más bajo)
+            // Slider 100 -> Umbral 5 (muy sensible)
+            // Slider 0 -> Umbral 80 (hay que pegar muy fuerte)
+            triggerThreshold = Math.max(5, 80 - (sliderVal * 0.75)); 
 
-            // Actualizar UI de calibración
-            updateCalibrationUI(vol);
-
-            if (isListening) {
-                // Lógica de Histéresis (Anti-rebote pro)
-                if (audioState === 'WAITING_FOR_PEAK') {
-                    if (vol > triggerThreshold) {
-                        registerHit();
-                        audioState = 'WAITING_FOR_RESET';
-                    }
-                } else if (audioState === 'WAITING_FOR_RESET') {
-                    if (vol < resetThreshold) {
-                        audioState = 'WAITING_FOR_PEAK';
-                    }
-                }
-                
-                // Visualización en juego
-                const gameBar = document.getElementById('mic-level-game');
-                if(gameBar) gameBar.style.width = vol + '%';
-            }
+            document.getElementById('threshold-line').style.left = (triggerThreshold * 2) + '%'; // Visual approx
+            // Ocultamos la linea verde, ya no se usa lógica de reset por umbral bajo
+            document.getElementById('reset-line').style.opacity = '0'; 
         }
+    }
 
-        function updateCalibrationUI(vol) {
-            // Solo actualiza si estamos en el menú
-            const bar = document.getElementById('mic-level');
-            if (bar && document.getElementById('screen-main').classList.contains('active')) {
-                bar.style.width = vol + '%';
-                
-                // Leer slider
-                const sliderVal = parseInt(document.getElementById('sensitivity').value);
-                triggerThreshold = sliderVal;
-                resetThreshold = sliderVal * 0.6; // El reset es el 60% del trigger (ajuste fino)
+    function registerHit() {
+        score++;
+        const el = document.getElementById('counter');
+        el.innerText = score;
+        
+        // Animación CSS pura (más rápida que manipular clases constantemente)
+        el.style.transform = "scale(1.2)";
+        el.style.color = "#00ff00";
+        setTimeout(() => {
+            el.style.transform = "scale(1)";
+            el.style.color = "#fff";
+        }, 80); // 80ms de animación
 
-                // Mover líneas guía
-                document.getElementById('threshold-line').style.left = triggerThreshold + '%';
-                document.getElementById('reset-line').style.left = resetThreshold + '%';
-            }
+        // Sonido: Usamos un oscilador muy corto para latencia cero
+        playTone(600 + (score * 5), 'triangle', 0.04); // Sube tono con cada golpe (gamification)
+    }
+
+    function playTone(freq, type, dur) {
+        if (!audioContext) return;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        gain.connect(audioContext.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + dur);
+        osc.stop(audioContext.currentTime + dur);
+    }
+
+    // --- GESTIÓN DEL TORNEO ---
+    let tournamentData = {
+        players: [], 
+        config: { rounds: 1, attempts: 1 },
+        state: { playerIdx: 0, round: 1, attempt: 1 }
+    };
+
+    function generatePlayerInputs() {
+        const count = document.getElementById('num-players').value;
+        const container = document.getElementById('player-inputs-container');
+        container.innerHTML = "";
+        for(let i=1; i<=count; i++) {
+            container.innerHTML += `<input type="text" id="pname-${i}" value="Jugador ${i}" placeholder="Nombre ${i}">`;
         }
+    }
+    // Llamada inicial segura
+    setTimeout(generatePlayerInputs, 100);
 
-        function registerHit() {
-            score++;
-            const el = document.getElementById('counter');
-            el.innerText = score;
-            el.classList.remove('hit-effect');
-            void el.offsetWidth; // Trigger reflow
-            el.classList.add('hit-effect');
-            
-            // Beep corto de alta frecuencia (menos latencia percibida)
-            playTone(800, 'square', 0.05);
-        }
-
-        function playTone(freq, type, dur) {
-            if (!audioContext) return;
-            const osc = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-            gain.connect(audioContext.destination);
-            osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + dur);
-            osc.stop(audioContext.currentTime + dur);
-        }
-
-        // --- GESTIÓN DEL TORNEO ---
-        let tournamentData = {
-            players: [], // { name: "Pepe", scores: [], best: 0 }
-            config: { rounds: 1, attempts: 1 },
-            state: { playerIdx: 0, round: 1, attempt: 1 }
-        };
-
-        // Generar inputs de nombres
-        function generatePlayerInputs() {
-            const count = document.getElementById('num-players').value;
-            const container = document.getElementById('player-inputs-container');
-            container.innerHTML = "";
-            for(let i=1; i<=count; i++) {
-                container.innerHTML += `<input type="text" id="pname-${i}" value="Jugador ${i}" placeholder="Nombre ${i}">`;
-            }
-        }
-        generatePlayerInputs(); // Init
-
-        function initTournament() {
-            // Recoger configuración
-            const pCount = document.getElementById('num-players').value;
-            tournamentData.players = [];
-            for(let i=1; i<=pCount; i++) {
-                tournamentData.players.push({
-                    name: document.getElementById(`pname-${i}`).value,
-                    scores: [],
-                    best: 0
-                });
-            }
-            tournamentData.config.rounds = parseInt(document.getElementById('num-rounds').value);
-            tournamentData.config.attempts = parseInt(document.getElementById('num-attempts').value);
-            tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
-            
-            // Iniciar Audio Engine
-            initAudio().then(() => {
-                showTransitionScreen();
+    function initTournament() {
+        const pCount = document.getElementById('num-players').value;
+        tournamentData.players = [];
+        for(let i=1; i<=pCount; i++) {
+            tournamentData.players.push({
+                name: document.getElementById(`pname-${i}`).value,
+                scores: [],
+                best: 0
             });
         }
+        tournamentData.config.rounds = parseInt(document.getElementById('num-rounds').value);
+        tournamentData.config.attempts = parseInt(document.getElementById('num-attempts').value);
+        tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
+        
+        initAudio().then(() => {
+            showTransitionScreen();
+        });
+    }
 
-        function startSingleMode() {
-            // Configurar un "mini torneo" de 1 jugador
-            tournamentData.players = [{ name: "Tú", scores: [], best: 0 }];
-            tournamentData.config = { rounds: 1, attempts: 1 };
-            tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
-            initAudio().then(() => {
-                showTransitionScreen(); // O saltar directo a countdown
-            });
-        }
+    function startSingleMode() {
+        tournamentData.players = [{ name: "Tú", scores: [], best: 0 }];
+        tournamentData.config = { rounds: 1, attempts: 1 };
+        tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
+        initAudio().then(() => {
+            showTransitionScreen();
+        });
+    }
 
-        function showTransitionScreen() {
-            const state = tournamentData.state;
-            const player = tournamentData.players[state.playerIdx];
-            const attemptsLeft = tournamentData.config.attempts - state.attempt + 1;
+    function showTransitionScreen() {
+        const state = tournamentData.state;
+        const player = tournamentData.players[state.playerIdx];
+        const attemptsLeft = tournamentData.config.attempts - state.attempt + 1;
 
-            document.getElementById('trans-player-name').innerText = player.name;
-            document.getElementById('trans-round').innerText = `${state.round} / ${tournamentData.config.rounds}`;
-            document.getElementById('trans-attempt').innerText = `${state.attempt} / ${tournamentData.config.attempts}`;
-            document.getElementById('trans-remaining').innerText = attemptsLeft;
-            
-            updateMiniLeaderboard();
-            showScreen('screen-transition');
-        }
+        document.getElementById('trans-player-name').innerText = player.name;
+        document.getElementById('trans-round').innerText = `${state.round} / ${tournamentData.config.rounds}`;
+        document.getElementById('trans-attempt').innerText = `${state.attempt} / ${tournamentData.config.attempts}`;
+        document.getElementById('trans-remaining').innerText = attemptsLeft;
+        
+        updateMiniLeaderboard();
+        showScreen('screen-transition');
+    }
 
-        function updateMiniLeaderboard() {
-            const table = document.getElementById('mini-leaderboard');
-            // Ordenar copia de jugadores por mejor puntuación
-            let sorted = [...tournamentData.players].sort((a,b) => b.best - a.best);
-            
-            let html = "<tr><th>Pos</th><th>Nombre</th><th>Récord</th></tr>";
-            sorted.forEach((p, idx) => {
-                let isCurrent = p.name === tournamentData.players[tournamentData.state.playerIdx].name;
-                html += `<tr class="${isCurrent ? 'row-highlight' : ''}">
-                    <td>${idx+1}</td>
-                    <td>${p.name}</td>
-                    <td>${p.best}</td>
-                </tr>`;
-            });
-            table.innerHTML = html;
-        }
+    function updateMiniLeaderboard() {
+        const table = document.getElementById('mini-leaderboard');
+        let sorted = [...tournamentData.players].sort((a,b) => b.best - a.best);
+        
+        let html = "<tr><th>Pos</th><th>Nombre</th><th>Récord</th></tr>";
+        sorted.forEach((p, idx) => {
+            let isCurrent = p.name === tournamentData.players[tournamentData.state.playerIdx].name;
+            html += `<tr class="${isCurrent ? 'row-highlight' : ''}">
+                <td>${idx+1}</td>
+                <td>${p.name}</td>
+                <td>${p.best}</td>
+            </tr>`;
+        });
+        table.innerHTML = html;
+    }
 
-        // --- CUENTA ATRÁS Y JUEGO ---
-        function runCountdownAndStart() {
-            const overlay = document.getElementById('countdown-overlay');
-            const num = document.getElementById('countdown-number');
-            overlay.style.display = 'flex';
-            
-            let count = 3;
-            num.innerText = count;
-            playTone(400, 'sine', 0.1);
+    // --- CUENTA ATRÁS Y JUEGO ---
+    function runCountdownAndStart() {
+        const overlay = document.getElementById('countdown-overlay');
+        const num = document.getElementById('countdown-number');
+        overlay.style.display = 'flex';
+        
+        let count = 3;
+        num.innerText = count;
+        playTone(400, 'sine', 0.1);
 
-            let int = setInterval(() => {
-                count--;
-                if(count > 0) {
-                    num.innerText = count;
-                    num.style.animation = 'none';
-                    void num.offsetWidth;
-                    num.style.animation = 'pop 0.5s ease-out';
-                    playTone(400, 'sine', 0.1);
-                } else {
-                    clearInterval(int);
-                    num.innerText = "¡YA!";
-                    playTone(800, 'square', 0.3);
-                    setTimeout(() => {
-                        overlay.style.display = 'none';
-                        launchGameLoop();
-                    }, 500);
-                }
-            }, 1000);
-        }
-
-        function launchGameLoop() {
-            showScreen('screen-game');
-            const state = tournamentData.state;
-            const player = tournamentData.players[state.playerIdx];
-            
-            // Setup UI Juego
-            document.getElementById('game-player-name').innerText = player.name;
-            document.getElementById('game-info').innerText = `Ronda ${state.round} - Intento ${state.attempt}`;
-            
-            // Reset Vars
-            score = 0;
-            document.getElementById('counter').innerText = "0";
-            isListening = true;
-            audioState = 'WAITING_FOR_PEAK';
-            
-            let timeLimit = 10.00;
-            let startTime = Date.now();
-            
-            // Loop de Tiempo preciso
-            let timerInt = setInterval(() => {
-                let elapsed = (Date.now() - startTime) / 1000;
-                let remain = timeLimit - elapsed;
-                
-                if (remain <= 0) {
-                    remain = 0;
-                    document.getElementById('timer').innerText = "0.00";
-                    clearInterval(timerInt);
-                    finishAttempt();
-                } else {
-                    document.getElementById('timer').innerText = remain.toFixed(2);
-                }
-            }, 50); // 50ms refresh rate visual
-            
-            // Guardar referencia para cancelar
-            window.currentGameInterval = timerInt;
-        }
-
-        function finishAttempt() {
-            isListening = false;
-            
-            // Guardar datos
-            const state = tournamentData.state;
-            const player = tournamentData.players[state.playerIdx];
-            
-            player.scores.push(score);
-            if (score > player.best) player.best = score;
-
-            // Mostrar resultado
-            showScreen('screen-result');
-            document.getElementById('result-score').innerText = score;
-            
-            // Calcular siguiente estado
-            let nextBtnText = "SIGUIENTE INTENTO";
-            let action = "next_attempt";
-
-            // Lógica de avance
-            // 1. ¿Quedan intentos a este jugador?
-            if (state.attempt < tournamentData.config.attempts) {
-                state.attempt++;
+        let int = setInterval(() => {
+            count--;
+            if(count > 0) {
+                num.innerText = count;
+                num.style.animation = 'none';
+                void num.offsetWidth;
+                num.style.animation = 'pop 0.5s ease-out';
+                playTone(400, 'sine', 0.1);
             } else {
-                // No quedan intentos.
-                state.attempt = 1;
-                // 2. ¿Quedan jugadores en esta ronda?
-                if (state.playerIdx < tournamentData.players.length - 1) {
-                    state.playerIdx++;
-                    nextBtnText = `SIGUIENTE: ${tournamentData.players[state.playerIdx].name}`;
-                    action = "next_player";
+                clearInterval(int);
+                num.innerText = "¡YA!";
+                playTone(800, 'square', 0.3);
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    launchGameLoop();
+                }, 500);
+            }
+        }, 1000);
+    }
+
+    function launchGameLoop() {
+        showScreen('screen-game');
+        const state = tournamentData.state;
+        const player = tournamentData.players[state.playerIdx];
+        
+        document.getElementById('game-player-name').innerText = player.name;
+        document.getElementById('game-info').innerText = `Ronda ${state.round} - Intento ${state.attempt}`;
+        
+        score = 0;
+        document.getElementById('counter').innerText = "0";
+        isListening = true;
+        
+        // Reset variables de audio para evitar falsos positivos al iniciar
+        lastVolume = 100; 
+        lastHitTime = Date.now() + 500; // Bloqueo de 0.5s al inicio para que no cuente el grito de "YA"
+
+        let timeLimit = 10.00;
+        let startTime = Date.now();
+        
+        let timerInt = setInterval(() => {
+            let elapsed = (Date.now() - startTime) / 1000;
+            let remain = timeLimit - elapsed;
+            
+            if (remain <= 0) {
+                remain = 0;
+                document.getElementById('timer').innerText = "0.00";
+                clearInterval(timerInt);
+                finishAttempt();
+            } else {
+                document.getElementById('timer').innerText = remain.toFixed(2);
+            }
+        }, 30); // Refresco más rápido
+        
+        window.currentGameInterval = timerInt;
+    }
+
+    function finishAttempt() {
+        isListening = false;
+        
+        const state = tournamentData.state;
+        const player = tournamentData.players[state.playerIdx];
+        
+        player.scores.push(score);
+        if (score > player.best) player.best = score;
+
+        showScreen('screen-result');
+        document.getElementById('result-score').innerText = score;
+        
+        let nextBtnText = "SIGUIENTE INTENTO";
+        let action = "next_attempt";
+
+        if (state.attempt < tournamentData.config.attempts) {
+            state.attempt++;
+        } else {
+            state.attempt = 1;
+            if (state.playerIdx < tournamentData.players.length - 1) {
+                state.playerIdx++;
+                nextBtnText = `SIGUIENTE: ${tournamentData.players[state.playerIdx].name}`;
+                action = "next_player";
+            } else {
+                state.playerIdx = 0;
+                if (state.round < tournamentData.config.rounds) {
+                    state.round++;
+                    nextBtnText = "SIGUIENTE RONDA";
+                    action = "next_round";
                 } else {
-                    // Fin de ronda para todos.
-                    state.playerIdx = 0;
-                    // 3. ¿Quedan rondas?
-                    if (state.round < tournamentData.config.rounds) {
-                        state.round++;
-                        nextBtnText = "SIGUIENTE RONDA";
-                        action = "next_round";
-                    } else {
-                        nextBtnText = "VER PODIO FINAL";
-                        action = "finish";
-                    }
+                    nextBtnText = "VER PODIO FINAL";
+                    action = "finish";
                 }
             }
-            
-            // Renderizar botón
-            const container = document.getElementById('result-actions');
-            container.innerHTML = `<button onclick="handleNextStep('${action}')" class="green">${nextBtnText}</button>`;
         }
+        
+        const container = document.getElementById('result-actions');
+        container.innerHTML = `<button onclick="handleNextStep('${action}')" class="green">${nextBtnText}</button>`;
+    }
 
-        function handleNextStep(action) {
-            if (action === 'finish') {
-                showFinalPodium();
-            } else {
-                showTransitionScreen();
-            }
+    function handleNextStep(action) {
+        if (action === 'finish') {
+            showFinalPodium();
+        } else {
+            showTransitionScreen();
         }
+    }
 
-        function showFinalPodium() {
-            // Reutilizamos pantalla de transición pero cambiada
-            showScreen('screen-transition');
-            document.getElementById('trans-player-name').style.display = 'none'; // Ocultar nombre singular
-            document.querySelector('#screen-transition h3').innerText = "🏆 CLASIFICACIÓN FINAL 🏆";
-            document.querySelector('#screen-transition div').style.display = 'none'; // Ocultar caja info
-            document.querySelector('#screen-transition button').innerText = "MENU PRINCIPAL";
-            document.querySelector('#screen-transition button').onclick = () => location.reload();
-            updateMiniLeaderboard(); // Muestra la tabla final
-        }
+    function showFinalPodium() {
+        showScreen('screen-transition');
+        document.getElementById('trans-player-name').style.display = 'none';
+        document.querySelector('#screen-transition h3').innerText = "🏆 CLASIFICACIÓN FINAL 🏆";
+        document.querySelector('#screen-transition div').style.display = 'none';
+        const btn = document.querySelector('#screen-transition button');
+        btn.innerText = "MENU PRINCIPAL";
+        btn.onclick = () => location.reload();
+        updateMiniLeaderboard();
+    }
 
-        function abortGame() {
-            isListening = false;
-            clearInterval(window.currentGameInterval);
-            showScreen('screen-main');
-        }
+    function abortGame() {
+        isListening = false;
+        clearInterval(window.currentGameInterval);
+        showScreen('screen-main');
+    }
 
-        // Helpers UI
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
     </script>
 </body>
 </html>
