@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BoxBall Home Arena</title>
+    <style>
+        /* ESTILO GENERAL - ALTO CONTRASTE PARA TV */
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation; /* Mejora respuesta táctil */
+        }
+
+        h1 { margin: 0; font-size: 2rem; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
+        
+        /* PANTALLAS (MENU, JUEGO, RESULTADO) */
+        .screen { display: none; width: 90%; max-width: 600px; text-align: center; }
+        .active { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+
+        /* INPUTS Y BOTONES */
+        input {
+            padding: 15px; font-size: 1.2rem; border-radius: 10px; border: none; width: 80%; text-align: center;
+            background: #333; color: white; margin-bottom: 10px;
+        }
+        button {
+            background: linear-gradient(45deg, #ff0055, #ff5500);
+            border: none; padding: 15px 30px; color: white; font-size: 1.2rem; font-weight: bold;
+            border-radius: 50px; cursor: pointer; transition: transform 0.1s; width: 100%; margin: 5px 0;
+            box-shadow: 0 4px 15px rgba(255, 85, 0, 0.4);
+        }
+        button:active { transform: scale(0.95); }
+        button.secondary { background: #333; box-shadow: none; }
+        
+        .mode-btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .mode-btn { flex: 1; min-width: 80px; font-size: 1rem; }
+
+        /* HUD DE JUEGO */
+        #counter { font-size: 8rem; font-weight: bold; line-height: 1; margin: 20px 0; color: #fff; transition: color 0.1s; }
+        #timer { font-size: 2rem; color: #aaa; }
+        #feedback { height: 20px; color: #ff0055; font-weight: bold; }
+
+        /* ANIMACIÓN DE GOLPE */
+        .hit-effect { color: #00ff00 !important; transform: scale(1.1); }
+
+        /* VISUALIZADOR DE MICROFONO */
+        #mic-bar {
+            width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 20px; overflow: hidden;
+        }
+        #mic-level { width: 0%; height: 100%; background: #00e5ff; transition: width 0.05s; }
+
+        /* RITMO BPM VISUAL */
+        #rhythm-indicator {
+            width: 50px; height: 50px; border-radius: 50%; background: #444; margin-top: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .beat-flash { background: #ffff00 !important; box-shadow: 0 0 20px #ffff00 !important; transform: scale(1.2); }
+
+        /* CONFETI SIMPLE */
+        .confetti { position: absolute; width: 10px; height: 10px; background: #f00; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="screen-menu" class="screen active">
+        <h1>BoxBall Arena</h1>
+        <p style="color:#aaa; font-size: 0.9rem;">Conecta a la TV y sube el volumen</p>
+        
+        <input type="text" id="player-name" placeholder="Nombre del Jugador" value="Jugador 1">
+        
+        <div style="background:#222; padding:10px; border-radius:10px; width:100%; box-sizing:border-box;">
+            <label style="font-size:0.8rem; color:#aaa;">SENSIBILIDAD MICROFONO</label>
+            <input type="range" id="sensitivity" min="0" max="100" value="60" style="width:100%;">
+            <div id="mic-bar"><div id="mic-level"></div></div>
+        </div>
+
+        <h3>MODO CONTRARRELOJ</h3>
+        <div class="mode-btn-group">
+            <button class="mode-btn" onclick="startGame('time', 10)">10s</button>
+            <button class="mode-btn" onclick="startGame('time', 30)">30s</button>
+            <button class="mode-btn" onclick="startGame('time', 60)">60s</button>
+        </div>
+
+        <h3>MODO RITMO (BPM)</h3>
+        <div class="mode-btn-group">
+            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 100)">100 BPM</button>
+            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 120)">120 BPM</button>
+            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 180)">180 BPM</button>
+            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 200)">200 BPM</button>
+        </div>
+
+        <div style="margin-top:20px; width: 100%;">
+             <h4 style="margin:5px 0;">🏆 RÉCORDS LOCALES</h4>
+             <ul id="highscore-list" style="text-align:left; font-size:0.9rem; color:#ccc; list-style:none; padding:0;"></ul>
+             <button class="secondary" onclick="clearScores()" style="font-size:0.8rem; padding:5px;">Borrar Récords</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <h2 id="mode-display">Modo 10s</h2>
+        <div id="rhythm-indicator"></div> <div id="counter">0</div>
+        <div id="timer">00:10</div>
+        <div id="feedback"></div>
+        <button class="secondary" onclick="stopGame()" style="margin-top: 50px;">CANCELAR</button>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <h2 style="color:#00e5ff">¡TIEMPO!</h2>
+        <h1 id="final-score" style="font-size: 6rem;">0</h1>
+        <p id="new-record-msg" style="color:#ffff00; font-weight:bold; font-size:1.5rem; min-height:30px;"></p>
+        <button onclick="showScreen('screen-menu')">VOLVER AL MENÚ</button>
+    </div>
+
+    <script>
+        // --- VARIABLES GLOBALES ---
+        let audioContext, analyser, microphone, dataArray;
+        let isListening = false;
+        let score = 0;
+        let timeLeft = 0;
+        let gameInterval, beatInterval;
+        let currentGameMode = '';
+        let currentTarget = 0;
+        let lastHitTime = 0;
+        let bpmAudioContext = new (window.AudioContext || window.webkitAudioContext)(); // Para el sonido beep
+
+        // --- GESTIÓN DE PANTALLAS ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- INICIALIZAR AUDIO (MICROFONO) ---
+        async function initAudio() {
+            if (audioContext) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                detectVolume(); // Iniciar bucle de detección
+            } catch (err) {
+                alert("Error: No se pudo acceder al micrófono. Asegúrate de dar permisos.");
+            }
+        }
+
+        // --- DETECCIÓN DE GOLPES ---
+        function detectVolume() {
+            if (!analyser) return;
+            requestAnimationFrame(detectVolume);
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calcular volumen promedio
+            let sum = 0;
+            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            let average = sum / dataArray.length;
+
+            // Visualizar en barra de menú
+            document.getElementById('mic-level').style.width = (average * 2) + '%';
+
+            // Lógica de detección de golpe
+            // Umbral ajustable por el usuario (slider va de 0 a 100, average suele ser 0-50 en silencio, 100+ golpe)
+            let sensitivity = 100 - document.getElementById('sensitivity').value; // Invertir: menor valor slider = más sensible? No, mejor: valor alto = umbral bajo
+            let threshold = (document.getElementById('sensitivity').value * 1.5) + 10; 
+
+            // Debounce (evitar contar rebotes): 150ms entre golpes
+            let now = Date.now();
+            if (isListening && average > threshold && (now - lastHitTime > 150)) {
+                registerHit();
+                lastHitTime = now;
+            }
+        }
+
+        function registerHit() {
+            score++;
+            const counterEl = document.getElementById('counter');
+            counterEl.innerText = score;
+            
+            // Efecto visual
+            counterEl.classList.add('hit-effect');
+            setTimeout(() => counterEl.classList.remove('hit-effect'), 100);
+
+            // Sonido de "Hit" satisfactorio
+            playTone(600, 'square', 0.1); 
+        }
+
+        // --- SONIDOS SINTETIZADOS ---
+        function playTone(freq, type, duration) {
+            const osc = bpmAudioContext.createOscillator();
+            const gain = bpmAudioContext.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            osc.connect(gain);
+            gain.connect(bpmAudioContext.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, bpmAudioContext.currentTime + duration);
+            osc.stop(bpmAudioContext.currentTime + duration);
+        }
+
+        // --- LÓGICA DEL JUEGO ---
+        async function startGame(mode, target) {
+            await initAudio(); // Asegurar micro activo
+            if (!audioContext) return;
+
+            currentGameMode = mode;
+            currentTarget = target;
+            score = 0;
+            document.getElementById('counter').innerText = '0';
+            
+            showScreen('screen-game');
+            document.getElementById('new-record-msg').innerText = "";
+
+            if (mode === 'time') {
+                timeLeft = target;
+                document.getElementById('mode-display').innerText = `Contrarreloj: ${target}s`;
+                document.getElementById('rhythm-indicator').style.display = 'none';
+                startTimer();
+            } else if (mode === 'rhythm') {
+                timeLeft = 60; // Los modos ritmo duran 60s por defecto (o hasta que se cansen)
+                document.getElementById('mode-display').innerText = `Ritmo: ${target} BPM`;
+                document.getElementById('rhythm-indicator').style.display = 'block';
+                startTimer();
+                startMetronome(target);
+            }
+            
+            isListening = true;
+        }
+
+        function startTimer() {
+            document.getElementById('timer').innerText = timeLeft;
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft < 10 ? "0" + timeLeft : timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function startMetronome(bpm) {
+            const intervalMs = 60000 / bpm;
+            beatInterval = setInterval(() => {
+                // Flash visual
+                const indicator = document.getElementById('rhythm-indicator');
+                indicator.classList.add('beat-flash');
+                setTimeout(() => indicator.classList.remove('beat-flash'), 100);
+                // Sonido Beat
+                playTone(400, 'sine', 0.1);
+            }, intervalMs);
+        }
+
+        function stopGame() {
+            isListening = false;
+            clearInterval(gameInterval);
+            clearInterval(beatInterval);
+            showScreen('screen-menu');
+        }
+
+        function endGame() {
+            stopGame();
+            showScreen('screen-result');
+            document.getElementById('final-score').innerText = score;
+            checkHighScore();
+        }
+
+        // --- SISTEMA DE RÉCORDS ---
+        function checkHighScore() {
+            const name = document.getElementById('player-name').value || "Anónimo";
+            const key = `boxball_${currentGameMode}_${currentTarget}`;
+            const oldRecord = localStorage.getItem(key) || 0;
+
+            if (score > oldRecord) {
+                localStorage.setItem(key, score);
+                localStorage.setItem(key + "_name", name);
+                document.getElementById('new-record-msg').innerText = "¡NUEVO RÉCORD! 🏆";
+                playTone(800, 'triangle', 0.5); // Sonido victoria
+                playTone(1200, 'triangle', 0.5); 
+                triggerConfetti();
+            } else {
+                document.getElementById('new-record-msg').innerText = `Récord actual: ${oldRecord} (${localStorage.getItem(key+"_name")})`;
+            }
+            updateHighScoresList();
+        }
+
+        function updateHighScoresList() {
+            const list = document.getElementById('highscore-list');
+            list.innerHTML = "";
+            const modes = [
+                ['time', 10], ['time', 30], ['time', 60],
+                ['rhythm', 100], ['rhythm', 120]
+            ];
+            
+            modes.forEach(m => {
+                const key = `boxball_${m[0]}_${m[1]}`;
+                const val = localStorage.getItem(key);
+                if (val) {
+                    const name = localStorage.getItem(key + "_name");
+                    const label = m[0] === 'time' ? `${m[1]}s` : `${m[1]} BPM`;
+                    const li = document.createElement('li');
+                    li.innerText = `${label}: ${val} pts - ${name}`;
+                    list.appendChild(li);
+                }
+            });
+        }
+
+        function clearScores() {
+            if(confirm("¿Borrar todos los récords?")) {
+                localStorage.clear();
+                updateHighScoresList();
+            }
+        }
+
+        function triggerConfetti() {
+            for(let i=0; i<50; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
+                c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 4000);
+            }
+        }
+
+        // Cargar récords al inicio
+        updateHighScoresList();
+
+    </script>
+</body>
+</html>
