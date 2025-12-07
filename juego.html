@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BoxBall Home Arena</title>
+    <title>BoxBall Pro Arena</title>
     <style>
-        /* ESTILO GENERAL - ALTO CONTRASTE PARA TV */
+        /* --- ESTILOS GENERALES (Modo Oscuro TV) --- */
         body {
-            background-color: #121212;
+            background-color: #0d0d0d;
             color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -17,324 +17,479 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            touch-action: manipulation; /* Mejora respuesta táctil */
+            touch-action: manipulation;
         }
 
-        h1 { margin: 0; font-size: 2rem; color: #00e5ff; text-transform: uppercase; letter-spacing: 2px; }
+        /* Tipografía */
+        h1 { margin: 0; font-size: 1.8rem; color: #00e5ff; text-transform: uppercase; letter-spacing: 1px; }
+        h2 { margin: 10px 0; font-size: 1.4rem; }
+        h3 { color: #aaa; font-weight: normal; margin: 5px 0; }
+        .big-text { font-size: 3rem; font-weight: bold; color: #fff; }
+        .highlight { color: #ff0055; }
+
+        /* Pantallas */
+        .screen { display: none; width: 95%; max-width: 600px; text-align: center; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
+        .active { display: flex; }
+        .scrollable { overflow-y: auto; max-height: 40vh; width: 100%; margin-bottom: 10px; }
+
+        /* Controles */
+        input[type="text"], input[type="number"] {
+            padding: 12px; font-size: 1.1rem; border-radius: 8px; border: 1px solid #444; width: 80%;
+            background: #222; color: white; text-align: center; margin: 5px 0;
+        }
         
-        /* PANTALLAS (MENU, JUEGO, RESULTADO) */
-        .screen { display: none; width: 90%; max-width: 600px; text-align: center; }
-        .active { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-
-        /* INPUTS Y BOTONES */
-        input {
-            padding: 15px; font-size: 1.2rem; border-radius: 10px; border: none; width: 80%; text-align: center;
-            background: #333; color: white; margin-bottom: 10px;
-        }
         button {
-            background: linear-gradient(45deg, #ff0055, #ff5500);
-            border: none; padding: 15px 30px; color: white; font-size: 1.2rem; font-weight: bold;
-            border-radius: 50px; cursor: pointer; transition: transform 0.1s; width: 100%; margin: 5px 0;
-            box-shadow: 0 4px 15px rgba(255, 85, 0, 0.4);
+            background: linear-gradient(135deg, #ff0055, #ff4400);
+            border: none; padding: 15px 25px; color: white; font-size: 1.1rem; font-weight: bold;
+            border-radius: 50px; cursor: pointer; margin: 8px 0; width: 90%; max-width: 300px;
+            box-shadow: 0 4px 15px rgba(255, 68, 0, 0.4); text-transform: uppercase;
         }
-        button:active { transform: scale(0.95); }
-        button.secondary { background: #333; box-shadow: none; }
-        
-        .mode-btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
-        .mode-btn { flex: 1; min-width: 80px; font-size: 1rem; }
+        button:active { transform: scale(0.96); }
+        button.secondary { background: #333; background-image: none; box-shadow: none; border: 1px solid #555; }
+        button.green { background: linear-gradient(135deg, #00b09b, #96c93d); box-shadow: 0 4px 15px rgba(150, 201, 61, 0.4); }
 
-        /* HUD DE JUEGO */
-        #counter { font-size: 8rem; font-weight: bold; line-height: 1; margin: 20px 0; color: #fff; transition: color 0.1s; }
-        #timer { font-size: 2rem; color: #aaa; }
-        #feedback { height: 20px; color: #ff0055; font-weight: bold; }
+        /* HUD Juego */
+        #counter { font-size: 9rem; font-weight: 800; line-height: 1; margin: 10px 0; color: #fff; text-shadow: 0 0 20px rgba(0,229,255,0.3); }
+        #timer { font-size: 2.5rem; color: #ffeb3b; font-family: monospace; }
+        .hit-effect { transform: scale(1.15); color: #00ff00 !important; text-shadow: 0 0 30px #00ff00 !important; }
 
-        /* ANIMACIÓN DE GOLPE */
-        .hit-effect { color: #00ff00 !important; transform: scale(1.1); }
+        /* Barra Micrófono con indicadores de umbral */
+        .mic-container { width: 90%; background: #222; height: 20px; border-radius: 10px; position: relative; overflow: hidden; margin-top: 10px; }
+        #mic-level { width: 0%; height: 100%; background: #00e5ff; transition: width 0.05s linear; }
+        #threshold-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff0055; z-index: 2; }
+        #reset-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #00ff00; z-index: 2; opacity: 0.7; }
 
-        /* VISUALIZADOR DE MICROFONO */
-        #mic-bar {
-            width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 20px; overflow: hidden;
+        /* Cuenta Atrás Overlay */
+        #countdown-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
         }
-        #mic-level { width: 0%; height: 100%; background: #00e5ff; transition: width 0.05s; }
+        #countdown-number { font-size: 12rem; font-weight: bold; color: #fff; animation: pop 0.5s ease-out; }
 
-        /* RITMO BPM VISUAL */
-        #rhythm-indicator {
-            width: 50px; height: 50px; border-radius: 50%; background: #444; margin-top: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
-        .beat-flash { background: #ffff00 !important; box-shadow: 0 0 20px #ffff00 !important; transform: scale(1.2); }
+        /* Tabla Clasificación */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th, td { padding: 8px; border-bottom: 1px solid #333; }
+        th { color: #888; text-transform: uppercase; font-size: 0.7rem; }
+        .row-highlight { background: rgba(0, 229, 255, 0.15); color: #00e5ff; font-weight: bold; }
 
-        /* CONFETI SIMPLE */
-        .confetti { position: absolute; width: 10px; height: 10px; background: #f00; animation: fall linear forwards; }
-        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
-
+        @keyframes pop { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-    <div id="screen-menu" class="screen active">
-        <h1>BoxBall Arena</h1>
-        <p style="color:#aaa; font-size: 0.9rem;">Conecta a la TV y sube el volumen</p>
+    <div id="countdown-overlay"><div id="countdown-number">3</div></div>
+
+    <div id="screen-main" class="screen active">
+        <h1 style="font-size: 2.5rem; margin-bottom: 20px;">BOXBALL PRO</h1>
         
-        <input type="text" id="player-name" placeholder="Nombre del Jugador" value="Jugador 1">
+        <div style="width: 100%; margin-bottom: 20px; background: #1a1a1a; padding: 15px; border-radius: 15px;">
+            <p style="font-size:0.8rem; margin:0 0 5px 0; color:#aaa;">CALIBRAR DETECCIÓN (ANTIRREBOTE)</p>
+            <input type="range" id="sensitivity" min="5" max="90" value="40" style="width:100%;">
+            <div class="mic-container">
+                <div id="mic-level"></div>
+                <div id="threshold-line" style="left: 40%;"></div> <div id="reset-line" style="left: 20%;"></div>     </div>
+            <p style="font-size:0.7rem; color:#666; margin-top:5px;">La barra azul debe pasar la línea ROJA para contar y bajar de la VERDE para recargar.</p>
+        </div>
+
+        <button onclick="showScreen('screen-setup-tournament')" class="green">🏆 MODO TORNEO</button>
+        <button onclick="startSingleMode()">⚡ PARTIDA RÁPIDA (10s)</button>
+        <p style="font-size: 0.8rem; color: #555; margin-top: 20px;">Versión Anti-Ghosting 2.0</p>
+    </div>
+
+    <div id="screen-setup-tournament" class="screen">
+        <h2>CONFIGURAR TORNEO</h2>
+        <div style="display:flex; gap:10px; justify-content:center; width:100%;">
+            <div style="flex:1;">
+                <label>Jugadores</label>
+                <input type="number" id="num-players" value="2" min="1" max="20" onchange="generatePlayerInputs()">
+            </div>
+            <div style="flex:1;">
+                <label>Rondas</label>
+                <input type="number" id="num-rounds" value="1" min="1" max="10">
+            </div>
+            <div style="flex:1;">
+                <label>Intentos</label>
+                <input type="number" id="num-attempts" value="1" min="1" max="20">
+            </div>
+        </div>
+
+        <h3>NOMBRES</h3>
+        <div id="player-inputs-container" class="scrollable">
+            </div>
+
+        <button onclick="initTournament()" class="green">COMENZAR TORNEO</button>
+        <button onclick="showScreen('screen-main')" class="secondary">ATRÁS</button>
+    </div>
+
+    <div id="screen-transition" class="screen">
+        <h3>SIGUIENTE TURNO</h3>
+        <h1 id="trans-player-name" class="big-text" style="color: #00e5ff;">Pepe</h1>
+        <div style="background: #222; padding: 20px; border-radius: 10px; width: 80%; margin: 20px 0;">
+            <p>RONDA <span id="trans-round" class="highlight">1</span></p>
+            <p>INTENTO <span id="trans-attempt" class="highlight">1</span> RESTANTES: <span id="trans-remaining">2</span></p>
+        </div>
+        <button onclick="runCountdownAndStart()" class="green" style="font-size: 1.5rem;">¡EMPEZAR!</button>
         
-        <div style="background:#222; padding:10px; border-radius:10px; width:100%; box-sizing:border-box;">
-            <label style="font-size:0.8rem; color:#aaa;">SENSIBILIDAD MICROFONO</label>
-            <input type="range" id="sensitivity" min="0" max="100" value="60" style="width:100%;">
-            <div id="mic-bar"><div id="mic-level"></div></div>
-        </div>
-
-        <h3>MODO CONTRARRELOJ</h3>
-        <div class="mode-btn-group">
-            <button class="mode-btn" onclick="startGame('time', 10)">10s</button>
-            <button class="mode-btn" onclick="startGame('time', 30)">30s</button>
-            <button class="mode-btn" onclick="startGame('time', 60)">60s</button>
-        </div>
-
-        <h3>MODO RITMO (BPM)</h3>
-        <div class="mode-btn-group">
-            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 100)">100 BPM</button>
-            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 120)">120 BPM</button>
-            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 180)">180 BPM</button>
-            <button class="mode-btn" style="background: #8e24aa;" onclick="startGame('rhythm', 200)">200 BPM</button>
-        </div>
-
-        <div style="margin-top:20px; width: 100%;">
-             <h4 style="margin:5px 0;">🏆 RÉCORDS LOCALES</h4>
-             <ul id="highscore-list" style="text-align:left; font-size:0.9rem; color:#ccc; list-style:none; padding:0;"></ul>
-             <button class="secondary" onclick="clearScores()" style="font-size:0.8rem; padding:5px;">Borrar Récords</button>
+        <div style="width: 90%; margin-top: 20px;">
+            <h3>TOP ACTUAL</h3>
+            <table id="mini-leaderboard"></table>
         </div>
     </div>
 
     <div id="screen-game" class="screen">
-        <h2 id="mode-display">Modo 10s</h2>
-        <div id="rhythm-indicator"></div> <div id="counter">0</div>
-        <div id="timer">00:10</div>
-        <div id="feedback"></div>
-        <button class="secondary" onclick="stopGame()" style="margin-top: 50px;">CANCELAR</button>
+        <div style="position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box;">
+            <span id="game-player-name" style="color:#aaa;">Jugador 1</span>
+            <span id="game-info" style="color:#aaa;">R:1 I:1</span>
+        </div>
+        
+        <div id="counter">0</div>
+        <div id="timer">10.00</div>
+        
+        <div class="mic-container" style="width: 50%; opacity: 0.5;">
+            <div id="mic-level-game" style="height:100%; background:#fff; width:0%;"></div>
+        </div>
+
+        <button onclick="abortGame()" class="secondary" style="margin-top: 50px; opacity: 0.5;">CANCELAR</button>
     </div>
 
     <div id="screen-result" class="screen">
-        <h2 style="color:#00e5ff">¡TIEMPO!</h2>
-        <h1 id="final-score" style="font-size: 6rem;">0</h1>
-        <p id="new-record-msg" style="color:#ffff00; font-weight:bold; font-size:1.5rem; min-height:30px;"></p>
-        <button onclick="showScreen('screen-menu')">VOLVER AL MENÚ</button>
+        <h2 id="result-title">¡TIEMPO!</h2>
+        <h1 id="result-score" style="font-size: 6rem; margin: 10px 0;">0</h1>
+        
+        <div id="result-actions">
+            </div>
     </div>
 
     <script>
-        // --- VARIABLES GLOBALES ---
+        // --- MOTOR DE AUDIO AVANZADO (SCHMITT TRIGGER) ---
         let audioContext, analyser, microphone, dataArray;
         let isListening = false;
         let score = 0;
-        let timeLeft = 0;
-        let gameInterval, beatInterval;
-        let currentGameMode = '';
-        let currentTarget = 0;
-        let lastHitTime = 0;
-        let bpmAudioContext = new (window.AudioContext || window.webkitAudioContext)(); // Para el sonido beep
-
-        // --- GESTIÓN DE PANTALLAS ---
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
-
-        // --- INICIALIZAR AUDIO (MICROFONO) ---
+        let audioState = 'WAITING_FOR_PEAK'; // Estados: WAITING_FOR_PEAK, WAITING_FOR_RESET
+        
+        // Configuración de calibración
+        let triggerThreshold = 40; // Se actualiza con el slider
+        let resetThreshold = 20;   // Se calcula automáticamente (ej. 50% del trigger)
+        
         async function initAudio() {
             if (audioContext) return;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioContext.createAnalyser();
                 microphone = audioContext.createMediaStreamSource(stream);
                 microphone.connect(analyser);
                 analyser.fftSize = 256;
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
-                detectVolume(); // Iniciar bucle de detección
+                detectVolumeLoop();
             } catch (err) {
-                alert("Error: No se pudo acceder al micrófono. Asegúrate de dar permisos.");
+                alert("Necesitas dar permiso al micrófono.");
             }
         }
 
-        // --- DETECCIÓN DE GOLPES ---
-        function detectVolume() {
+        function detectVolumeLoop() {
             if (!analyser) return;
-            requestAnimationFrame(detectVolume);
+            requestAnimationFrame(detectVolumeLoop);
             analyser.getByteFrequencyData(dataArray);
 
-            // Calcular volumen promedio
+            // Calcular volumen RMS para mayor precisión que el promedio simple
             let sum = 0;
-            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            let average = sum / dataArray.length;
+            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i] * dataArray[i];
+            let rms = Math.sqrt(sum / dataArray.length);
+            
+            // Escalar RMS a 0-100 aprox para facilitar UI
+            let vol = Math.min(rms * 1.5, 100); 
 
-            // Visualizar en barra de menú
-            document.getElementById('mic-level').style.width = (average * 2) + '%';
+            // Actualizar UI de calibración
+            updateCalibrationUI(vol);
 
-            // Lógica de detección de golpe
-            // Umbral ajustable por el usuario (slider va de 0 a 100, average suele ser 0-50 en silencio, 100+ golpe)
-            let sensitivity = 100 - document.getElementById('sensitivity').value; // Invertir: menor valor slider = más sensible? No, mejor: valor alto = umbral bajo
-            let threshold = (document.getElementById('sensitivity').value * 1.5) + 10; 
+            if (isListening) {
+                // Lógica de Histéresis (Anti-rebote pro)
+                if (audioState === 'WAITING_FOR_PEAK') {
+                    if (vol > triggerThreshold) {
+                        registerHit();
+                        audioState = 'WAITING_FOR_RESET';
+                    }
+                } else if (audioState === 'WAITING_FOR_RESET') {
+                    if (vol < resetThreshold) {
+                        audioState = 'WAITING_FOR_PEAK';
+                    }
+                }
+                
+                // Visualización en juego
+                const gameBar = document.getElementById('mic-level-game');
+                if(gameBar) gameBar.style.width = vol + '%';
+            }
+        }
 
-            // Debounce (evitar contar rebotes): 150ms entre golpes
-            let now = Date.now();
-            if (isListening && average > threshold && (now - lastHitTime > 150)) {
-                registerHit();
-                lastHitTime = now;
+        function updateCalibrationUI(vol) {
+            // Solo actualiza si estamos en el menú
+            const bar = document.getElementById('mic-level');
+            if (bar && document.getElementById('screen-main').classList.contains('active')) {
+                bar.style.width = vol + '%';
+                
+                // Leer slider
+                const sliderVal = parseInt(document.getElementById('sensitivity').value);
+                triggerThreshold = sliderVal;
+                resetThreshold = sliderVal * 0.6; // El reset es el 60% del trigger (ajuste fino)
+
+                // Mover líneas guía
+                document.getElementById('threshold-line').style.left = triggerThreshold + '%';
+                document.getElementById('reset-line').style.left = resetThreshold + '%';
             }
         }
 
         function registerHit() {
             score++;
-            const counterEl = document.getElementById('counter');
-            counterEl.innerText = score;
+            const el = document.getElementById('counter');
+            el.innerText = score;
+            el.classList.remove('hit-effect');
+            void el.offsetWidth; // Trigger reflow
+            el.classList.add('hit-effect');
             
-            // Efecto visual
-            counterEl.classList.add('hit-effect');
-            setTimeout(() => counterEl.classList.remove('hit-effect'), 100);
-
-            // Sonido de "Hit" satisfactorio
-            playTone(600, 'square', 0.1); 
+            // Beep corto de alta frecuencia (menos latencia percibida)
+            playTone(800, 'square', 0.05);
         }
 
-        // --- SONIDOS SINTETIZADOS ---
-        function playTone(freq, type, duration) {
-            const osc = bpmAudioContext.createOscillator();
-            const gain = bpmAudioContext.createGain();
-            osc.type = type;
-            osc.frequency.value = freq;
-            osc.connect(gain);
-            gain.connect(bpmAudioContext.destination);
-            osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.00001, bpmAudioContext.currentTime + duration);
-            osc.stop(bpmAudioContext.currentTime + duration);
-        }
-
-        // --- LÓGICA DEL JUEGO ---
-        async function startGame(mode, target) {
-            await initAudio(); // Asegurar micro activo
+        function playTone(freq, type, dur) {
             if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+            gain.connect(audioContext.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + dur);
+            osc.stop(audioContext.currentTime + dur);
+        }
 
-            currentGameMode = mode;
-            currentTarget = target;
-            score = 0;
-            document.getElementById('counter').innerText = '0';
-            
-            showScreen('screen-game');
-            document.getElementById('new-record-msg').innerText = "";
+        // --- GESTIÓN DEL TORNEO ---
+        let tournamentData = {
+            players: [], // { name: "Pepe", scores: [], best: 0 }
+            config: { rounds: 1, attempts: 1 },
+            state: { playerIdx: 0, round: 1, attempt: 1 }
+        };
 
-            if (mode === 'time') {
-                timeLeft = target;
-                document.getElementById('mode-display').innerText = `Contrarreloj: ${target}s`;
-                document.getElementById('rhythm-indicator').style.display = 'none';
-                startTimer();
-            } else if (mode === 'rhythm') {
-                timeLeft = 60; // Los modos ritmo duran 60s por defecto (o hasta que se cansen)
-                document.getElementById('mode-display').innerText = `Ritmo: ${target} BPM`;
-                document.getElementById('rhythm-indicator').style.display = 'block';
-                startTimer();
-                startMetronome(target);
+        // Generar inputs de nombres
+        function generatePlayerInputs() {
+            const count = document.getElementById('num-players').value;
+            const container = document.getElementById('player-inputs-container');
+            container.innerHTML = "";
+            for(let i=1; i<=count; i++) {
+                container.innerHTML += `<input type="text" id="pname-${i}" value="Jugador ${i}" placeholder="Nombre ${i}">`;
             }
-            
-            isListening = true;
         }
+        generatePlayerInputs(); // Init
 
-        function startTimer() {
-            document.getElementById('timer').innerText = timeLeft;
-            gameInterval = setInterval(() => {
-                timeLeft--;
-                document.getElementById('timer').innerText = timeLeft < 10 ? "0" + timeLeft : timeLeft;
-                if (timeLeft <= 0) endGame();
-            }, 1000);
-        }
-
-        function startMetronome(bpm) {
-            const intervalMs = 60000 / bpm;
-            beatInterval = setInterval(() => {
-                // Flash visual
-                const indicator = document.getElementById('rhythm-indicator');
-                indicator.classList.add('beat-flash');
-                setTimeout(() => indicator.classList.remove('beat-flash'), 100);
-                // Sonido Beat
-                playTone(400, 'sine', 0.1);
-            }, intervalMs);
-        }
-
-        function stopGame() {
-            isListening = false;
-            clearInterval(gameInterval);
-            clearInterval(beatInterval);
-            showScreen('screen-menu');
-        }
-
-        function endGame() {
-            stopGame();
-            showScreen('screen-result');
-            document.getElementById('final-score').innerText = score;
-            checkHighScore();
-        }
-
-        // --- SISTEMA DE RÉCORDS ---
-        function checkHighScore() {
-            const name = document.getElementById('player-name').value || "Anónimo";
-            const key = `boxball_${currentGameMode}_${currentTarget}`;
-            const oldRecord = localStorage.getItem(key) || 0;
-
-            if (score > oldRecord) {
-                localStorage.setItem(key, score);
-                localStorage.setItem(key + "_name", name);
-                document.getElementById('new-record-msg').innerText = "¡NUEVO RÉCORD! 🏆";
-                playTone(800, 'triangle', 0.5); // Sonido victoria
-                playTone(1200, 'triangle', 0.5); 
-                triggerConfetti();
-            } else {
-                document.getElementById('new-record-msg').innerText = `Récord actual: ${oldRecord} (${localStorage.getItem(key+"_name")})`;
+        function initTournament() {
+            // Recoger configuración
+            const pCount = document.getElementById('num-players').value;
+            tournamentData.players = [];
+            for(let i=1; i<=pCount; i++) {
+                tournamentData.players.push({
+                    name: document.getElementById(`pname-${i}`).value,
+                    scores: [],
+                    best: 0
+                });
             }
-            updateHighScoresList();
-        }
-
-        function updateHighScoresList() {
-            const list = document.getElementById('highscore-list');
-            list.innerHTML = "";
-            const modes = [
-                ['time', 10], ['time', 30], ['time', 60],
-                ['rhythm', 100], ['rhythm', 120]
-            ];
+            tournamentData.config.rounds = parseInt(document.getElementById('num-rounds').value);
+            tournamentData.config.attempts = parseInt(document.getElementById('num-attempts').value);
+            tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
             
-            modes.forEach(m => {
-                const key = `boxball_${m[0]}_${m[1]}`;
-                const val = localStorage.getItem(key);
-                if (val) {
-                    const name = localStorage.getItem(key + "_name");
-                    const label = m[0] === 'time' ? `${m[1]}s` : `${m[1]} BPM`;
-                    const li = document.createElement('li');
-                    li.innerText = `${label}: ${val} pts - ${name}`;
-                    list.appendChild(li);
-                }
+            // Iniciar Audio Engine
+            initAudio().then(() => {
+                showTransitionScreen();
             });
         }
 
-        function clearScores() {
-            if(confirm("¿Borrar todos los récords?")) {
-                localStorage.clear();
-                updateHighScoresList();
+        function startSingleMode() {
+            // Configurar un "mini torneo" de 1 jugador
+            tournamentData.players = [{ name: "Tú", scores: [], best: 0 }];
+            tournamentData.config = { rounds: 1, attempts: 1 };
+            tournamentData.state = { playerIdx: 0, round: 1, attempt: 1 };
+            initAudio().then(() => {
+                showTransitionScreen(); // O saltar directo a countdown
+            });
+        }
+
+        function showTransitionScreen() {
+            const state = tournamentData.state;
+            const player = tournamentData.players[state.playerIdx];
+            const attemptsLeft = tournamentData.config.attempts - state.attempt + 1;
+
+            document.getElementById('trans-player-name').innerText = player.name;
+            document.getElementById('trans-round').innerText = `${state.round} / ${tournamentData.config.rounds}`;
+            document.getElementById('trans-attempt').innerText = `${state.attempt} / ${tournamentData.config.attempts}`;
+            document.getElementById('trans-remaining').innerText = attemptsLeft;
+            
+            updateMiniLeaderboard();
+            showScreen('screen-transition');
+        }
+
+        function updateMiniLeaderboard() {
+            const table = document.getElementById('mini-leaderboard');
+            // Ordenar copia de jugadores por mejor puntuación
+            let sorted = [...tournamentData.players].sort((a,b) => b.best - a.best);
+            
+            let html = "<tr><th>Pos</th><th>Nombre</th><th>Récord</th></tr>";
+            sorted.forEach((p, idx) => {
+                let isCurrent = p.name === tournamentData.players[tournamentData.state.playerIdx].name;
+                html += `<tr class="${isCurrent ? 'row-highlight' : ''}">
+                    <td>${idx+1}</td>
+                    <td>${p.name}</td>
+                    <td>${p.best}</td>
+                </tr>`;
+            });
+            table.innerHTML = html;
+        }
+
+        // --- CUENTA ATRÁS Y JUEGO ---
+        function runCountdownAndStart() {
+            const overlay = document.getElementById('countdown-overlay');
+            const num = document.getElementById('countdown-number');
+            overlay.style.display = 'flex';
+            
+            let count = 3;
+            num.innerText = count;
+            playTone(400, 'sine', 0.1);
+
+            let int = setInterval(() => {
+                count--;
+                if(count > 0) {
+                    num.innerText = count;
+                    num.style.animation = 'none';
+                    void num.offsetWidth;
+                    num.style.animation = 'pop 0.5s ease-out';
+                    playTone(400, 'sine', 0.1);
+                } else {
+                    clearInterval(int);
+                    num.innerText = "¡YA!";
+                    playTone(800, 'square', 0.3);
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        launchGameLoop();
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        function launchGameLoop() {
+            showScreen('screen-game');
+            const state = tournamentData.state;
+            const player = tournamentData.players[state.playerIdx];
+            
+            // Setup UI Juego
+            document.getElementById('game-player-name').innerText = player.name;
+            document.getElementById('game-info').innerText = `Ronda ${state.round} - Intento ${state.attempt}`;
+            
+            // Reset Vars
+            score = 0;
+            document.getElementById('counter').innerText = "0";
+            isListening = true;
+            audioState = 'WAITING_FOR_PEAK';
+            
+            let timeLimit = 10.00;
+            let startTime = Date.now();
+            
+            // Loop de Tiempo preciso
+            let timerInt = setInterval(() => {
+                let elapsed = (Date.now() - startTime) / 1000;
+                let remain = timeLimit - elapsed;
+                
+                if (remain <= 0) {
+                    remain = 0;
+                    document.getElementById('timer').innerText = "0.00";
+                    clearInterval(timerInt);
+                    finishAttempt();
+                } else {
+                    document.getElementById('timer').innerText = remain.toFixed(2);
+                }
+            }, 50); // 50ms refresh rate visual
+            
+            // Guardar referencia para cancelar
+            window.currentGameInterval = timerInt;
+        }
+
+        function finishAttempt() {
+            isListening = false;
+            
+            // Guardar datos
+            const state = tournamentData.state;
+            const player = tournamentData.players[state.playerIdx];
+            
+            player.scores.push(score);
+            if (score > player.best) player.best = score;
+
+            // Mostrar resultado
+            showScreen('screen-result');
+            document.getElementById('result-score').innerText = score;
+            
+            // Calcular siguiente estado
+            let nextBtnText = "SIGUIENTE INTENTO";
+            let action = "next_attempt";
+
+            // Lógica de avance
+            // 1. ¿Quedan intentos a este jugador?
+            if (state.attempt < tournamentData.config.attempts) {
+                state.attempt++;
+            } else {
+                // No quedan intentos.
+                state.attempt = 1;
+                // 2. ¿Quedan jugadores en esta ronda?
+                if (state.playerIdx < tournamentData.players.length - 1) {
+                    state.playerIdx++;
+                    nextBtnText = `SIGUIENTE: ${tournamentData.players[state.playerIdx].name}`;
+                    action = "next_player";
+                } else {
+                    // Fin de ronda para todos.
+                    state.playerIdx = 0;
+                    // 3. ¿Quedan rondas?
+                    if (state.round < tournamentData.config.rounds) {
+                        state.round++;
+                        nextBtnText = "SIGUIENTE RONDA";
+                        action = "next_round";
+                    } else {
+                        nextBtnText = "VER PODIO FINAL";
+                        action = "finish";
+                    }
+                }
+            }
+            
+            // Renderizar botón
+            const container = document.getElementById('result-actions');
+            container.innerHTML = `<button onclick="handleNextStep('${action}')" class="green">${nextBtnText}</button>`;
+        }
+
+        function handleNextStep(action) {
+            if (action === 'finish') {
+                showFinalPodium();
+            } else {
+                showTransitionScreen();
             }
         }
 
-        function triggerConfetti() {
-            for(let i=0; i<50; i++) {
-                const c = document.createElement('div');
-                c.className = 'confetti';
-                c.style.left = Math.random() * 100 + 'vw';
-                c.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
-                c.style.animationDuration = (Math.random() * 2 + 2) + 's';
-                document.body.appendChild(c);
-                setTimeout(() => c.remove(), 4000);
-            }
+        function showFinalPodium() {
+            // Reutilizamos pantalla de transición pero cambiada
+            showScreen('screen-transition');
+            document.getElementById('trans-player-name').style.display = 'none'; // Ocultar nombre singular
+            document.querySelector('#screen-transition h3').innerText = "🏆 CLASIFICACIÓN FINAL 🏆";
+            document.querySelector('#screen-transition div').style.display = 'none'; // Ocultar caja info
+            document.querySelector('#screen-transition button').innerText = "MENU PRINCIPAL";
+            document.querySelector('#screen-transition button').onclick = () => location.reload();
+            updateMiniLeaderboard(); // Muestra la tabla final
         }
 
-        // Cargar récords al inicio
-        updateHighScoresList();
+        function abortGame() {
+            isListening = false;
+            clearInterval(window.currentGameInterval);
+            showScreen('screen-main');
+        }
 
+        // Helpers UI
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
     </script>
 </body>
 </html>
