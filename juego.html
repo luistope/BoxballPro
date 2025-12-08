@@ -174,40 +174,57 @@
 
     async function initAudio() {
         if (audioContext) return;
+        
+        // Configuración PRO (Baja latencia, sin filtros)
+        const constraintsPro = {
+            audio: {
+                echoCancellation: false,
+                autoGainControl: false,
+                noiseSuppression: false,
+                latency: 'interactive'
+            }
+        };
+
+        // Configuración COMPATIBLE (Estándar)
+        const constraintsBasic = { audio: true };
+
         try {
-            // CAMBIO CLAVE 1: Desactivar el procesamiento de voz de Android
-            const constraints = {
-                audio: {
-                    echoCancellation: false,
-                    autoGainControl: false,
-                    noiseSuppression: false,
-                    latency: 'interactive'
-                }
-            };
-            
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-            analyser = audioContext.createAnalyser();
-            microphone = audioContext.createMediaStreamSource(stream);
-            
-            // Filtro Paso Alto: Elimina ruidos graves (motores, viento) y deja los golpes agudos (pop)
-            const filter = audioContext.createBiquadFilter();
-            filter.type = "highpass";
-            filter.frequency.value = 500; // Solo frecuencias por encima de 500Hz
-            
-            microphone.connect(filter);
-            filter.connect(analyser);
-            
-            analyser.fftSize = 256;
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
-            
-            detectVolumeLoop();
+            // Intentamos primero el modo PRO (Mejor para detectar golpes rápidos)
+            const stream = await navigator.mediaDevices.getUserMedia(constraintsPro);
+            setupAudioStream(stream);
+            console.log("Modo Audio: PRO (Baja Latencia)");
         } catch (err) {
-            alert("Error de micrófono. Asegúrate de usar HTTPS o localhost.");
-            console.error(err);
+            console.warn("El modo PRO falló, intentando modo compatible...", err);
+            try {
+                // Si falla, intentamos el modo BÁSICO (Funciona en todos los micros)
+                const stream = await navigator.mediaDevices.getUserMedia(constraintsBasic);
+                setupAudioStream(stream);
+                console.log("Modo Audio: COMPATIBLE");
+            } catch (err2) {
+                alert("❌ ERROR CRÍTICO: No se puede acceder al micrófono. \n\n1. Revisa el icono del candado junto a la URL.\n2. Asegúrate de usar http://127.0.0.1:8000");
+                console.error("Error final:", err2);
+            }
         }
     }
 
+    function setupAudioStream(stream) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(stream);
+        
+        // Filtro para limpiar ruido grave
+        const filter = audioContext.createBiquadFilter();
+        filter.type = "highpass";
+        filter.frequency.value = 500; 
+        
+        microphone.connect(filter);
+        filter.connect(analyser);
+        
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        detectVolumeLoop();
+    }
     function detectVolumeLoop() {
         if (!analyser) return;
         requestAnimationFrame(detectVolumeLoop);
