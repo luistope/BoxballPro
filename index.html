@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0d0d0d">
-	<meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow">
     <title>BoxBall Pro Championship</title>
     
     <link rel="manifest" href='data:application/manifest+json,{
@@ -34,8 +34,6 @@
         .highlight { color: #ff0055; }
         .screen { display: none; width: 95%; max-width: 700px; text-align: center; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
         .active { display: flex; }
-        
-        /* Botones y Grilla */
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 90%; margin-top: 10px; }
         button {
             background: linear-gradient(135deg, #ff0055, #ff4400); border: none; padding: 15px; color: white;
@@ -46,25 +44,23 @@
         button.green { background: linear-gradient(135deg, #00b09b, #96c93d); box-shadow: 0 4px 15px rgba(150, 201, 61, 0.4); }
         button.blue { background: linear-gradient(135deg, #0072ff, #00c6ff); box-shadow: 0 4px 15px rgba(0, 198, 255, 0.4); }
         button.secondary { background: #333; box-shadow: none; border: 1px solid #555; width: auto; min-width: 150px; }
-
-        /* Inputs */
         input, select { background: #222; color: white; border: 1px solid #444; padding: 10px; border-radius: 8px; text-align: center; font-size: 1rem; }
-
-        /* HUD */
+        
         #counter { font-size: 9rem; font-weight: 800; line-height: 1; margin: 10px 0; text-shadow: 0 0 20px rgba(0,229,255,0.3); }
         #timer { font-size: 2.5rem; color: #ffeb3b; font-family: monospace; }
-        .mic-container { width: 90%; background: #222; height: 20px; border-radius: 10px; overflow: hidden; margin-top: 10px; position: relative; }
-        #mic-level { height: 100%; background: #00e5ff; width: 0%; transition: width 0.05s linear; }
-        #threshold-line { position: absolute; top:0; bottom:0; width:2px; background:#ff0055; z-index:2; }
-
-        /* Tablas */
+        
+        .mic-container { width: 90%; background: #222; height: 40px; border-radius: 8px; overflow: hidden; margin-top: 10px; position: relative; border: 1px solid #444; display: flex; align-items: center; }
+        #mic-level { height: 100%; background: #00ff00; width: 0%; transition: width 0.05s linear; opacity: 0.8; }
+        #threshold-line { position: absolute; top:0; bottom:0; width:4px; background:#ff0055; z-index:2; left: 30%; }
+        
+        .calib-counter-box { position: absolute; right: 10px; color: #fff; font-family: monospace; font-size: 1.2rem; font-weight: bold; z-index: 5; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
+        
         .scrollable { overflow-y: auto; max-height: 40vh; width: 100%; background: #111; padding: 10px; border-radius: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th, td { padding: 6px; border-bottom: 1px solid #333; text-align: center; }
         th { color: #888; text-transform: uppercase; font-size: 0.7rem; }
         .row-highlight { background: rgba(0, 229, 255, 0.15); color: #00e5ff; font-weight: bold; }
-
-        /* Overlay */
+        
         #countdown-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; justify-content: center; align-items: center; z-index: 1000; }
         #countdown-number { font-size: 12rem; font-weight: bold; animation: pop 0.4s ease-out; }
         @keyframes pop { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
@@ -78,10 +74,19 @@
         <h1>BOXBALL PRO</h1>
         <p style="color:#aaa; font-size:0.8rem; margin-bottom: 10px;">Championship Edition</p>
         
-        <div style="width: 100%; margin-bottom: 10px; background: #1a1a1a; padding: 10px; border-radius: 10px; box-sizing: border-box;">
-            <p style="font-size:0.7rem; margin:0; color:#aaa;">CALIBRAR FUERZA</p>
-            <input type="range" id="sensitivity" min="5" max="95" value="50" style="width:100%;">
-            <div class="mic-container"><div id="mic-level"></div><div id="threshold-line" style="left:50%"></div></div>
+        <div style="width: 100%; margin-bottom: 10px; background: #1a1a1a; padding: 15px; border-radius: 10px; box-sizing: border-box;">
+            <p style="font-size:0.8rem; margin:0 0 5px 0; color:#fff; font-weight:bold;">CALIBRAR (GOLPEA PARA PROBAR)</p>
+            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#aaa;">
+                <span>Izquierda: SENSIBLE (Roces)</span>
+                <span>Derecha: DURO (Golpes fuertes)</span>
+            </div>
+            <input type="range" id="sensitivity" min="5" max="80" value="25" style="width:100%; margin: 10px 0;">
+            <div class="mic-container">
+                <div id="mic-level"></div>
+                <div id="threshold-line"></div>
+                <div class="calib-counter-box"><span id="calib-counter-val">0</span> hits</div>
+            </div>
+            <button id="btn-activate-mic" onclick="activateMicManual()" style="font-size:0.8rem; padding: 10px; margin-top:5px; background: #333; border: 1px solid #555; width:100%;">🔴 ACTIVAR MICROFONO</button>
         </div>
 
         <button onclick="showScreen('screen-quick-select')" class="blue">⚡ PARTIDA RÁPIDA</button>
@@ -167,159 +172,174 @@
     </div>
 
     <script>
-        // --- 1. GESTIÓN DE AUDIO (VOZ Y SFX) ---
         const sfxCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+        let audioContext, analyser, microphone, dataArray;
+        let lastHitT = 0;
+        let previousEnergy = 0;
+        let triggerThreshold = 15;
+        let calibCounter = 0;
+        let micActive = false;
+
         function speak(text, rate = 1.2, pitch = 1.0) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 const u = new SpeechSynthesisUtterance(text);
-                u.lang = 'es-ES'; u.rate = rate; u.pitch = pitch;
-                const voices = window.speechSynthesis.getVoices();
-                const v = voices.find(v => v.lang.includes('es') && v.name.includes('Google')) || voices[0];
-                if(v) u.voice = v;
+                u.lang = 'es-ES'; u.rate = rate; u.pitch = pitch; u.volume = 1.0;
                 window.speechSynthesis.speak(u);
             }
         }
 
         function playBuzzer() {
-            // Sonido de chicharra "BZZZT"
             const osc = sfxCtx.createOscillator();
             const gain = sfxCtx.createGain();
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(150, sfxCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(50, sfxCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.5, sfxCtx.currentTime);
+            gain.gain.setValueAtTime(0.8, sfxCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, sfxCtx.currentTime + 0.5);
             osc.connect(gain); gain.connect(sfxCtx.destination);
             osc.start(); osc.stop(sfxCtx.currentTime + 0.5);
         }
 
-        function playHitSound(val) {
-            const osc = sfxCtx.createOscillator();
+        function playHitSound() {
+            // Sonido "Tick" breve y seco
+            const bufferSize = sfxCtx.sampleRate * 0.05; 
+            const buffer = sfxCtx.createBuffer(1, bufferSize, sfxCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1);
+            }
+            const noise = sfxCtx.createBufferSource();
+            noise.buffer = buffer;
             const gain = sfxCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(500 + (val*10), sfxCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, sfxCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.05);
-            osc.connect(gain); gain.connect(sfxCtx.destination);
-            osc.start(); osc.stop(sfxCtx.currentTime + 0.05);
+            const filter = sfxCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 2500;
+            gain.gain.setValueAtTime(0.8, sfxCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, sfxCtx.currentTime + 0.04);
+            noise.connect(filter); filter.connect(gain); gain.connect(sfxCtx.destination);
+            noise.start();
         }
 
-        // --- 2. BASE DE DATOS Y LÓGICA DE JUEGO ---
-        const DB_KEY = 'boxball_db_v5';
-        let gameState = {
-            mode: '10s', // 5s, 10s, 100h, tournament
-            target: 10,
-            score: 0,
-            startTime: 0,
-            isPlaying: false
-        };
+        const DB_KEY = 'boxball_db_v6';
+        let gameState = { mode: '10s', target: 10, score: 0, startTime: 0, isPlaying: false };
         let tournamentData = null;
 
         function saveRecord(player, score, mode) {
             let db = JSON.parse(localStorage.getItem(DB_KEY) || "[]");
-            const isTimeAttack = mode === '100h';
-            
-            // Buscar si es PB
-            const history = db.filter(r => r.mode === mode && r.player === player);
-            let isPB = false;
-            if (history.length === 0) isPB = true;
-            else {
-                const best = isTimeAttack 
-                    ? Math.min(...history.map(r => r.score)) 
-                    : Math.max(...history.map(r => r.score));
-                isPB = isTimeAttack ? (score < best) : (score > best);
-            }
-
-            db.unshift({
-                date: new Date().toLocaleDateString(),
-                player: player,
-                score: score,
-                mode: mode,
-                ts: Date.now()
-            });
+            db.unshift({ date: new Date().toLocaleDateString(), player, score, mode, ts: Date.now() });
             if(db.length > 200) db.pop();
             localStorage.setItem(DB_KEY, JSON.stringify(db));
-            return isPB;
+            return true; 
         }
-
-        function getGlobalRecord(mode) {
-            let db = JSON.parse(localStorage.getItem(DB_KEY) || "[]").filter(r => r.mode === mode);
-            if(db.length === 0) return null;
-            return mode === '100h' 
-                ? db.reduce((p, c) => p.score < c.score ? p : c) // Menor es mejor
-                : db.reduce((p, c) => p.score > c.score ? p : c); // Mayor es mejor
-        }
-
-        // --- 3. INPUT AUDIO ---
-        let audioContext, analyser, microphone, dataArray;
-        let lastVol = 0, lastHitT = 0;
-        let triggerThreshold = 30; // Controlado por slider
 
         async function initAudio() {
             if(audioContext) return;
+            
+            // INTENTO 1: Configuración PRO (Baja latencia, sin filtros)
+            const constraintsPro = { 
+                audio: { 
+                    echoCancellation: false, 
+                    autoGainControl: false, 
+                    noiseSuppression: false,
+                    latency: 'interactive'
+                }
+            };
+            
+            // INTENTO 2: Configuración COMPATIBLE
+            const constraintsBasic = { audio: true };
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false, latency: 'interactive' }});
+                // Probamos Pro
+                const stream = await navigator.mediaDevices.getUserMedia(constraintsPro);
                 setupStream(stream);
             } catch(e) {
+                console.warn("Modo Pro falló, probando modo compatible...");
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Si falla, probamos Básico
+                    const stream = await navigator.mediaDevices.getUserMedia(constraintsBasic);
                     setupStream(stream);
-                } catch(err) { alert("Microfono bloqueado"); }
+                } catch(err) {
+                    alert("ERROR: No se puede acceder al micrófono. \n\n1. Asegúrate de usar HTTPS (Github Pages).\n2. Si estás en local, usa localhost.");
+                }
             }
         }
+
         function setupStream(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
-            const f = audioContext.createBiquadFilter(); f.type="highpass"; f.frequency.value=500;
-            microphone.connect(f); f.connect(analyser);
+            
+            // Filtro para eliminar graves
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            
+            microphone.connect(filter);
+            filter.connect(analyser);
+            
+            analyser.fftSize = 512;
             dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            micActive = true;
             detectLoop();
+            document.getElementById('btn-activate-mic').style.display = 'none';
         }
+
+        function activateMicManual() {
+            initAudio();
+            calibCounter = 0;
+            document.getElementById('calib-counter-val').innerText = "0";
+        }
+
         function detectLoop() {
-            if(!analyser) return;
             requestAnimationFrame(detectLoop);
+            if(!analyser) return;
             analyser.getByteFrequencyData(dataArray);
             
-            let sum=0; for(let i=10; i<dataArray.length; i++) sum+=dataArray[i];
-            let vol = sum/(dataArray.length-10);
-            let slope = vol - lastVol;
+            let sum = 0;
+            for(let i = 10; i < dataArray.length; i++) sum += dataArray[i];
+            let currentEnergy = sum / (dataArray.length - 10);
             
-            // UI
+            let impactForce = Math.max(0, currentEnergy - previousEnergy); 
+            
+            let sliderVal = parseInt(document.getElementById('sensitivity').value);
+            triggerThreshold = 3 + (sliderVal * 0.6); 
+
             if(document.getElementById('screen-main').classList.contains('active')) {
-                document.getElementById('mic-level').style.width = Math.min(slope*4, 100)+'%';
-                triggerThreshold = 80 - (document.getElementById('sensitivity').value * 0.7);
-                document.getElementById('threshold-line').style.left = (triggerThreshold*2)+'%';
+                document.getElementById('mic-level').style.width = Math.min(impactForce * 4, 100) + '%'; 
+                document.getElementById('threshold-line').style.left = Math.min(triggerThreshold * 4, 100) + '%';
             }
             if(gameState.isPlaying) {
-                 document.getElementById('mic-level-game').style.width = Math.min(vol*2, 100)+'%';
-                 if(slope > triggerThreshold && (Date.now() - lastHitT > 90)) {
-                     registerHit();
-                     lastHitT = Date.now();
-                 }
+                document.getElementById('mic-level-game').style.width = Math.min(impactForce * 3, 100) + '%'; 
             }
-            lastVol = vol;
+
+            let now = Date.now();
+            if(impactForce > triggerThreshold && (now - lastHitT > 80)) {
+                lastHitT = now;
+                
+                if(gameState.isPlaying) {
+                    registerHit();
+                } else if(micActive && document.getElementById('screen-main').classList.contains('active')) {
+                    calibCounter++;
+                    document.getElementById('calib-counter-val').innerText = calibCounter;
+                    playHitSound();
+                    const bar = document.getElementById('mic-level');
+                    bar.style.backgroundColor = '#fff';
+                    setTimeout(()=> bar.style.backgroundColor = '#00ff00', 100);
+                }
+            }
+            previousEnergy = currentEnergy; 
         }
 
         function registerHit() {
             gameState.score++;
-            const el = document.getElementById('counter');
-            el.innerText = gameState.score;
-            el.style.color = "#00ff00"; setTimeout(()=>el.style.color="white", 80);
-            playHitSound(gameState.score);
-
-            // Lógica 100 Hits
-            if(gameState.mode === '100h' && gameState.score >= 100) {
-                endGame();
-            }
+            document.getElementById('counter').innerText = gameState.score;
+            playHitSound();
+            if(gameState.mode === '100h' && gameState.score >= 100) endGame();
         }
 
-        // --- 4. FLUJO DE JUEGO ---
         function startQuickGame(mode) {
             gameState.mode = mode;
-            // Configurar un "mini torneo" de 1 jugador
             tournamentData = { 
                 players: [{name: "Jugador", scores: {}, total: 0}], 
                 config: {rounds: 1, type: 'max'}, 
@@ -333,19 +353,14 @@
             const pNames = [];
             for(let i=1; i<=pCount; i++) pNames.push({
                 name: document.getElementById(`pname-${i}`).value, 
-                scores: {}, // {1: 20, 2: 25} (Scores per round)
-                total: 0 
+                scores: {}, total: 0 
             });
-            
             tournamentData = {
                 players: pNames,
-                config: {
-                    rounds: parseInt(document.getElementById('num-rounds').value),
-                    type: document.getElementById('score-mode').value // 'max' or 'sum'
-                },
+                config: { rounds: parseInt(document.getElementById('num-rounds').value), type: document.getElementById('score-mode').value },
                 state: { pIdx: 0, round: 1 }
             };
-            gameState.mode = '10s'; // Torneos siempre son 10s
+            gameState.mode = '10s';
             initAudio().then(showTransitionScreen);
         }
 
@@ -353,17 +368,14 @@
             const ol = document.getElementById('countdown-overlay');
             const num = document.getElementById('countdown-number');
             ol.style.display = 'flex';
-            
             let c = 3; num.innerText = c; speak("Tres");
             let i = setInterval(() => {
                 c--;
                 if(c>0) {
-                    num.innerText=c; 
-                    num.style.animation='none'; void num.offsetWidth; num.style.animation='pop 0.4s ease-out';
-                    speak(c==2?"Dos":"Uno");
+                    num.innerText=c; speak(c==2?"Dos":"Uno");
                 } else {
                     clearInterval(i);
-                    num.innerText="GO!!"; speak("¡GO!", 1.5, 1.2);
+                    num.innerText="GO!!"; speak("¡GO!", 1.5);
                     setTimeout(()=> { ol.style.display='none'; startGameLoop(); }, 600);
                 }
             }, 1000);
@@ -371,35 +383,21 @@
 
         function startGameLoop() {
             showScreen('screen-game');
-            const player = tournamentData.players[tournamentData.state.pIdx];
-            document.getElementById('game-player-name').innerText = player.name;
-            
             gameState.score = 0;
             gameState.isPlaying = true;
             gameState.startTime = Date.now();
             document.getElementById('counter').innerText = "0";
-
-            // Configurar Timer
-            let limit = 0;
-            let countUp = false;
-            
-            if(gameState.mode === '5s') { limit = 5; document.getElementById('game-mode-display').innerText = "META: 5s"; }
-            else if(gameState.mode === '10s') { limit = 10; document.getElementById('game-mode-display').innerText = "META: 10s"; }
-            else if(gameState.mode === '100h') { countUp = true; document.getElementById('game-mode-display').innerText = "META: 100 GOLPES"; }
+            let limit = gameState.mode === '5s' ? 5 : 10;
+            let countUp = gameState.mode === '100h';
 
             window.gameInt = setInterval(() => {
                 let elapsed = (Date.now() - gameState.startTime) / 1000;
-                
                 if(countUp) {
                     document.getElementById('timer').innerText = elapsed.toFixed(2);
                 } else {
                     let remain = limit - elapsed;
-                    if(remain <= 0) {
-                        document.getElementById('timer').innerText = "0.00";
-                        endGame();
-                    } else {
-                        document.getElementById('timer').innerText = remain.toFixed(2);
-                    }
+                    if(remain <= 0) { document.getElementById('timer').innerText = "0.00"; endGame(); }
+                    else { document.getElementById('timer').innerText = remain.toFixed(2); }
                 }
             }, 30);
         }
@@ -407,91 +405,43 @@
         function endGame() {
             gameState.isPlaying = false;
             clearInterval(window.gameInt);
-            playBuzzer(); // SONIDO FIN
-            
-            let finalVal = 0;
-            let resultText = "";
-            
-            if(gameState.mode === '100h') {
-                finalVal = (Date.now() - gameState.startTime) / 1000; // Tiempo
-                resultText = finalVal.toFixed(2) + "s";
-                document.getElementById('result-subtext').innerText = "TIEMPO";
-            } else {
-                finalVal = gameState.score; // Puntos
-                resultText = finalVal;
-                document.getElementById('result-subtext').innerText = "GOLPES";
-            }
-            
+            playBuzzer();
+            let val = gameState.mode === '100h' ? (Date.now() - gameState.startTime) / 1000 : gameState.score;
             setTimeout(() => {
                 showScreen('screen-result');
-                document.getElementById('result-score').innerText = resultText;
-                speak(gameState.mode === '100h' ? `Tiempo final, ${finalVal.toFixed(1)} segundos` : `${finalVal} puntos`);
-                processResults(finalVal);
+                document.getElementById('result-score').innerText = gameState.mode === '100h' ? val.toFixed(2) + "s" : val;
+                speak(val + (gameState.mode === '100h' ? " segundos" : " puntos"));
+                processResults(val);
             }, 800);
         }
 
         function processResults(val) {
             const state = tournamentData.state;
             const player = tournamentData.players[state.pIdx];
-            const cfg = tournamentData.config;
-            const mode = gameState.mode;
-
-            // 1. Guardar en Histórico Global
-            const isPB = saveRecord(player.name, val, mode);
-            const isWR = false; // Simplificado localmente
-            
-            let msg = isPB ? "¡RÉCORD PERSONAL! 🎉" : "¡BIEN JUGADO!";
-            document.getElementById('record-message').innerText = msg;
-
-            // 2. Guardar Puntos Torneo
-            // Si es modo Suma, guardamos el score de ESTA ronda. Si ya jugó esta ronda (reintentos), nos quedamos el mejor.
-            // Nota: Esta implementación asume 1 intento por turno para simplificar Suma.
-            
-            // Guardar score de la ronda actual
-            let currentRoundBest = player.scores[state.round] || (mode === '100h' ? 9999 : 0);
-            
-            let isBetter = (mode === '100h') ? (val < currentRoundBest) : (val > currentRoundBest);
+            saveRecord(player.name, val, gameState.mode);
+            let currentRoundBest = player.scores[state.round] || (gameState.mode === '100h' ? 9999 : 0);
+            let isBetter = (gameState.mode === '100h') ? (val < currentRoundBest) : (val > currentRoundBest);
             if(isBetter || !player.scores[state.round]) {
                 player.scores[state.round] = val;
             }
-
-            // Recalcular Total según modo
-            if(cfg.type === 'sum') {
-                // Suma de los mejores de cada ronda
+            
+            if(tournamentData.config.type === 'sum') {
                 player.total = Object.values(player.scores).reduce((a,b) => parseFloat(a)+parseFloat(b), 0);
-                if(mode === '100h') player.total = player.total.toFixed(2); // Formato tiempo
             } else {
-                // Max absoluto
                 let allScores = Object.values(player.scores);
-                if(allScores.length > 0) {
-                     player.total = (mode === '100h') ? Math.min(...allScores) : Math.max(...allScores);
-                }
+                if(allScores.length > 0) player.total = (gameState.mode === '100h') ? Math.min(...allScores) : Math.max(...allScores);
             }
-
-            // 3. Botón Siguiente
+            
             let nextText = "SIGUIENTE";
             let action = () => {};
-
             if(state.pIdx < tournamentData.players.length - 1) {
-                state.pIdx++;
-                nextText = `TURNO: ${tournamentData.players[state.pIdx].name}`;
-                action = showTransitionScreen;
+                state.pIdx++; nextText = `TURNO: ${tournamentData.players[state.pIdx].name}`; action = showTransitionScreen;
+            } else if(state.round < tournamentData.config.rounds) {
+                state.pIdx = 0; state.round++; nextText = "SIGUIENTE RONDA"; action = showTransitionScreen;
             } else {
-                state.pIdx = 0;
-                if(state.round < cfg.rounds) {
-                    state.round++;
-                    nextText = "SIGUIENTE RONDA";
-                    action = showTransitionScreen;
-                } else {
-                    nextText = "VER PODIO FINAL";
-                    action = showFinalPodium;
-                }
+                nextText = "VER PODIO FINAL"; action = showFinalPodium;
             }
-
-            document.getElementById('result-actions').innerHTML = "";
-            const btn = document.createElement('button');
-            btn.className = "green"; btn.innerText = nextText; btn.onclick = action;
-            document.getElementById('result-actions').appendChild(btn);
+            document.getElementById('result-actions').innerHTML = `<button onclick="(${action})()" class="green">${nextText}</button>`;
         }
 
         function showTransitionScreen() {
@@ -503,62 +453,24 @@
 
         function updateLeaderboard() {
             const tbl = document.getElementById('mini-leaderboard');
-            const mode = gameState.mode;
-            const isTime = mode === '100h';
-            
-            // Ordenar: Si es tiempo, ascendente (menor es mejor). Si puntos, descendente.
-            // Si es SUMA y tiempo, menor suma es mejor.
-            let sorted = [...tournamentData.players].sort((a,b) => {
-                let sA = parseFloat(a.total) || (isTime?9999:0);
-                let sB = parseFloat(b.total) || (isTime?9999:0);
-                return isTime ? sA - sB : sB - sA;
-            });
-
-            // Cabecera Dinámica
-            let html = `<tr><th>#</th><th>JUGADOR</th>`;
-            const isSum = tournamentData.config.type === 'sum';
-            
-            if(isSum) {
-                // Mostrar últimas 5 rondas max
-                let maxR = tournamentData.config.rounds;
-                let startR = Math.max(1, tournamentData.state.round - 4);
-                for(let r=startR; r<=tournamentData.state.round; r++) html += `<th>R${r}</th>`;
-                html += `<th>TOTAL</th></tr>`;
-            } else {
-                html += `<th>MEJOR</th></tr>`;
-            }
-
+            let isTime = gameState.mode === '100h';
+            let sorted = [...tournamentData.players].sort((a,b) => isTime ? a.total - b.total : b.total - a.total);
+            let html = `<tr><th>#</th><th>JUGADOR</th><th>TOTAL</th></tr>`;
             sorted.forEach((p, idx) => {
-                let isCurrent = p.name === tournamentData.players[tournamentData.state.pIdx].name;
-                html += `<tr class="${isCurrent?'row-highlight':''}"><td>${idx+1}</td><td style="text-align:left; padding-left:10px">${p.name}</td>`;
-                
-                if(isSum) {
-                     let startR = Math.max(1, tournamentData.state.round - 4);
-                     for(let r=startR; r<=tournamentData.state.round; r++) {
-                         let s = p.scores[r] !== undefined ? (isTime?p.scores[r].toFixed(2):p.scores[r]) : '-';
-                         html += `<td>${s}</td>`;
-                     }
-                     html += `<td style="color:#ffeb3b; font-weight:bold">${isTime?parseFloat(p.total).toFixed(2):p.total}</td></tr>`;
-                } else {
-                    let val = isTime ? (p.total > 9000 ? '-' : parseFloat(p.total).toFixed(2)) : p.total;
-                    html += `<td style="color:#ffeb3b; font-weight:bold">${val}</td></tr>`;
-                }
+                html += `<tr class="${p.name === tournamentData.players[tournamentData.state.pIdx].name ? 'row-highlight' : ''}">
+                    <td>${idx+1}</td><td>${p.name}</td><td>${p.total.toFixed(isTime ? 2 : 0)}</td></tr>`;
             });
             tbl.innerHTML = html;
         }
 
         function showFinalPodium() {
             showScreen('screen-transition');
-            document.getElementById('trans-player-name').style.display='none';
-            document.querySelector('#screen-transition h3').innerText = "🏆 CLASIFICACIÓN FINAL";
-            document.querySelector('#screen-transition div').style.display='none'; // ocultar caja ronda
-            const btn = document.querySelector('#screen-transition button');
-            btn.innerText = "MENÚ PRINCIPAL";
-            btn.onclick = () => location.reload();
+            document.getElementById('trans-player-name').innerText = "🏆 CLASIFICACIÓN FINAL 🏆";
+            document.querySelector('#screen-transition button').innerText = "REINICIAR";
+            document.querySelector('#screen-transition button').onclick = () => location.reload();
             updateLeaderboard();
         }
 
-        // --- EXTRAS ---
         function generatePlayerInputs() {
             const n = document.getElementById('num-players').value;
             const c = document.getElementById('player-inputs-container');
@@ -571,15 +483,11 @@
             showScreen('screen-history');
             const db = JSON.parse(localStorage.getItem(DB_KEY)||"[]");
             const tbl = document.getElementById('history-table');
-            if(db.length===0) { tbl.innerHTML="<tr><td>Sin datos</td></tr>"; return; }
             let h = "<tr><th>MODO</th><th>JUGADOR</th><th>RES</th></tr>";
-            db.forEach(r => {
-                let val = r.mode==='100h' ? r.score.toFixed(2)+'s' : r.score;
-                h += `<tr><td>${r.mode}</td><td>${r.player}</td><td style="color:#ffeb3b">${val}</td></tr>`;
-            });
+            db.slice(0, 10).forEach(r => { h += `<tr><td>${r.mode}</td><td>${r.player}</td><td>${r.score}</td></tr>`; });
             tbl.innerHTML = h;
         }
-        function clearHistory() { if(confirm("Borrar?")) { localStorage.removeItem(DB_KEY); showHistory(); }}
+        function clearHistory() { localStorage.removeItem(DB_KEY); showHistory(); }
         function abortGame() { clearInterval(window.gameInt); gameState.isPlaying=false; showScreen('screen-main'); }
         function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
     </script>
