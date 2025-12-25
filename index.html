@@ -89,7 +89,7 @@
                 <span>Izquierda: Muy Sensible</span>
                 <span>Derecha: Menos Sensible</span>
             </div>
-            <input type="range" id="sensitivity" min="1" max="100" value="20" style="width:100%; margin: 10px 0;">
+            <input type="range" id="sensitivity" min="1" max="100" value="15" style="width:100%; margin: 10px 0;">
             <div class="mic-container">
                 <div id="mic-level"></div>
                 <div id="threshold-line"></div>
@@ -208,21 +208,14 @@
         }
 
         function playHitSound() {
-            // Sonido "Woodblock" sutil (Triangulo corto con decaimiento rápido)
             const osc = sfxCtx.createOscillator();
             const gain = sfxCtx.createGain();
-            
-            osc.type = 'triangle'; // Suave, no metálico
-            // Frecuencia fija media-alta para cortar la mezcla pero sin ser estridente
+            osc.type = 'triangle';
             osc.frequency.setValueAtTime(800, sfxCtx.currentTime); 
-            
             gain.gain.setValueAtTime(0.6, sfxCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.03); // 30ms duración
-            
-            osc.connect(gain);
-            gain.connect(sfxCtx.destination);
-            osc.start();
-            osc.stop(sfxCtx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.03); 
+            osc.connect(gain); gain.connect(sfxCtx.destination);
+            osc.start(); osc.stop(sfxCtx.currentTime + 0.03);
         }
 
         const DB_KEY = 'boxball_db_v7';
@@ -239,17 +232,8 @@
 
         async function initAudio() {
             if(audioContext) return;
-            
-            const constraintsPro = { 
-                audio: { 
-                    echoCancellation: false, 
-                    autoGainControl: false, 
-                    noiseSuppression: false,
-                    latency: 'interactive'
-                }
-            };
+            const constraintsPro = { audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false, latency: 'interactive' } };
             const constraintsBasic = { audio: true };
-
             try {
                 const stream = await navigator.mediaDevices.getUserMedia(constraintsPro);
                 setupStream(stream);
@@ -257,9 +241,7 @@
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia(constraintsBasic);
                     setupStream(stream);
-                } catch(err) {
-                    alert("ERROR: No se puede acceder al micrófono.");
-                }
+                } catch(err) { alert("ERROR: No se puede acceder al micrófono."); }
             }
         }
 
@@ -267,22 +249,11 @@
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
-            
-            // FILTRO PASO BANDA (BANDPASS)
-            // Esto es la clave: Escucha solo entre ~300Hz y ~900Hz.
-            // La voz humana y el tecleo suelen tener armónicos mucho más altos.
-            // El golpe de pelota de espuma es "bofo" (medios).
             const filter = audioContext.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 600; // Centro de la frecuencia de golpe
-            filter.Q.value = 1.0; // Ancho de banda
-            
-            microphone.connect(filter);
-            filter.connect(analyser);
-            
+            filter.type = 'bandpass'; filter.frequency.value = 600; filter.Q.value = 1.0;
+            microphone.connect(filter); filter.connect(analyser);
             analyser.fftSize = 512;
             dataArray = new Uint8Array(analyser.frequencyBinCount);
-            
             micActive = true;
             detectLoop();
             document.getElementById('btn-activate-mic').style.display = 'none';
@@ -304,16 +275,10 @@
             if(!analyser) return;
             analyser.getByteFrequencyData(dataArray);
             
-            // Calcular Energía promedio del espectro filtrado
-            let sum = 0;
-            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            let sum = 0; for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             let currentEnergy = sum / dataArray.length;
-            
-            // Derivada (Cambio de energía)
             let impactForce = Math.max(0, currentEnergy - previousEnergy); 
-            
             let sliderVal = parseInt(document.getElementById('sensitivity').value);
-            // Ajuste de sensibilidad más logarítmico para mejor control en niveles bajos
             triggerThreshold = 2 + (sliderVal * 0.5); 
 
             if(document.getElementById('screen-main').classList.contains('active')) {
@@ -322,10 +287,8 @@
             }
 
             let now = Date.now();
-            // Lockout de 60ms (algo más rápido para permitir ráfagas)
             if(impactForce > triggerThreshold && (now - lastHitT > 60)) {
                 lastHitT = now;
-                
                 if(gameState.isPlaying) {
                     registerHit();
                 } else if(micActive && document.getElementById('screen-main').classList.contains('active')) {
@@ -349,21 +312,14 @@
 
         function startQuickGame(mode) {
             gameState.mode = mode;
-            tournamentData = { 
-                players: [{name: "Jugador", scores: {}, total: 0}], 
-                config: {rounds: 1, type: 'max'}, 
-                state: {pIdx: 0, round: 1} 
-            };
+            tournamentData = { players: [{name: "Jugador", scores: {}, total: 0}], config: {rounds: 1, type: 'max'}, state: {pIdx: 0, round: 1} };
             initAudio().then(showTransitionScreen);
         }
 
         function initTournament() {
             const pCount = document.getElementById('num-players').value;
             const pNames = [];
-            for(let i=1; i<=pCount; i++) pNames.push({
-                name: document.getElementById(`pname-${i}`).value, 
-                scores: {}, total: 0 
-            });
+            for(let i=1; i<=pCount; i++) pNames.push({ name: document.getElementById(`pname-${i}`).value, scores: {}, total: 0 });
             tournamentData = {
                 players: pNames,
                 config: { rounds: parseInt(document.getElementById('num-rounds').value), type: document.getElementById('score-mode').value },
@@ -380,9 +336,8 @@
             let c = 3; num.innerText = c; speak("Tres");
             let i = setInterval(() => {
                 c--;
-                if(c>0) {
-                    num.innerText=c; speak(c==2?"Dos":"Uno");
-                } else {
+                if(c>0) { num.innerText=c; speak(c==2?"Dos":"Uno"); } 
+                else {
                     clearInterval(i);
                     num.innerText="GO!!"; speak("¡GO!", 1.5);
                     setTimeout(()=> { ol.style.display='none'; startGameLoop(); }, 600);
@@ -393,13 +348,12 @@
         function startGameLoop() {
             showScreen('screen-game');
             const screenGame = document.getElementById('screen-game');
-            screenGame.className = "screen active playing"; // Fondo VERDE
-            
+            screenGame.className = "screen active playing";
             gameState.score = 0;
             gameState.isPlaying = true;
             gameState.startTime = Date.now();
             document.getElementById('counter').innerText = "0";
-            document.getElementById('counter').style.color = "#2e7d32"; // Texto verde oscuro
+            document.getElementById('counter').style.color = "#2e7d32";
             
             let limit = gameState.mode === '5s' ? 5 : 10;
             let countUp = gameState.mode === '100h';
@@ -420,10 +374,9 @@
             gameState.isPlaying = false;
             clearInterval(window.gameInt);
             playBuzzer();
-            
             const screenGame = document.getElementById('screen-game');
-            screenGame.className = "screen active finished"; // Fondo ROJO
-            document.getElementById('counter').style.color = "#c62828"; // Texto rojo oscuro
+            screenGame.className = "screen active finished";
+            document.getElementById('counter').style.color = "#c62828";
             
             let val = gameState.mode === '100h' ? (Date.now() - gameState.startTime) / 1000 : gameState.score;
             setTimeout(() => {
@@ -431,7 +384,7 @@
                 document.getElementById('result-score').innerText = gameState.mode === '100h' ? val.toFixed(2) + "s" : val;
                 speak(val + (gameState.mode === '100h' ? " segundos" : " puntos"));
                 processResults(val);
-            }, 1500); // Esperar un poco más en rojo para dramatismo
+            }, 1500);
         }
 
         function processResults(val) {
@@ -443,7 +396,6 @@
             if(isBetter || !player.scores[state.round]) {
                 player.scores[state.round] = val;
             }
-            
             if(tournamentData.config.type === 'sum') {
                 player.total = Object.values(player.scores).reduce((a,b) => parseFloat(a)+parseFloat(b), 0);
             } else {
@@ -452,7 +404,7 @@
             }
             
             let nextText = "SIGUIENTE";
-            let action = () => {};
+            let action = null;
             if(state.pIdx < tournamentData.players.length - 1) {
                 state.pIdx++; nextText = `TURNO: ${tournamentData.players[state.pIdx].name}`; action = showTransitionScreen;
             } else if(state.round < tournamentData.config.rounds) {
@@ -460,7 +412,14 @@
             } else {
                 nextText = "VER PODIO FINAL"; action = showFinalPodium;
             }
-            document.getElementById('result-actions').innerHTML = `<button onclick="(${action})()" class="green">${nextText}</button>`;
+            
+            const container = document.getElementById('result-actions');
+            container.innerHTML = '';
+            const btn = document.createElement('button');
+            btn.className = 'green';
+            btn.innerText = nextText;
+            btn.onclick = action;
+            container.appendChild(btn);
         }
 
         function showTransitionScreen() {
