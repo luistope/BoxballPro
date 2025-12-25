@@ -67,7 +67,7 @@ Ideal para proyectar en una **Android TV** vía "Cast" y competir en el salón d
 ## 🛠️ Instalación y Uso
 
 ### En el Móvil (Recomendado)
-1. Abre el enlace de [GitHub Pages](https://tu-usuario.github.io/tu-repo/) en Chrome.
+1. Abre el enlace de [GitHub Pages](https://luistope.github.io/BoxballPro/) en Chrome.
 2. Pulsa el menú de tres puntos (⋮) y selecciona **"Añadir a pantalla de inicio"** o **"Instalar aplicación"**.
 3. Abre la app desde tu menú de inicio para disfrutar de la experiencia a pantalla completa.
 
