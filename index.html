@@ -31,8 +31,7 @@
         h1 { margin: 0; font-size: 1.8rem; color: #00e5ff; text-transform: uppercase; letter-spacing: 1px; }
         h2 { margin: 10px 0; font-size: 1.4rem; }
         .big-text { font-size: 3rem; font-weight: bold; color: #fff; }
-        .highlight { color: #ff0055; }
-        .screen { display: none; width: 95%; max-width: 700px; text-align: center; height: 100%; flex-direction: column; justify-content: center; align-items: center; }
+        .screen { display: none; width: 100%; max-width: 700px; text-align: center; height: 100%; flex-direction: column; justify-content: center; align-items: center; transition: background-color 0.3s ease; }
         .active { display: flex; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 90%; margin-top: 10px; }
         button {
@@ -46,16 +45,26 @@
         button.secondary { background: #333; box-shadow: none; border: 1px solid #555; width: auto; min-width: 150px; }
         input, select { background: #222; color: white; border: 1px solid #444; padding: 10px; border-radius: 8px; text-align: center; font-size: 1rem; }
         
-        #counter { font-size: 9rem; font-weight: 800; line-height: 1; margin: 10px 0; text-shadow: 0 0 20px rgba(0,229,255,0.3); }
-        #timer { font-size: 2.5rem; color: #ffeb3b; font-family: monospace; }
+        /* Game Screen Styles */
+        #screen-game.playing { background-color: #2e7d32; } /* Verde Juego */
+        #screen-game.finished { background-color: #c62828; } /* Rojo Fin */
+        
+        .counter-circle {
+            background: white; width: 280px; height: 280px; border-radius: 50%; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin: 20px 0;
+        }
+        #counter { font-size: 8rem; font-weight: 800; line-height: 1; margin: 0; color: #333; transition: color 0.2s; }
+        #timer { font-size: 2rem; color: #666; font-family: monospace; font-weight: bold; }
         
         .mic-container { width: 90%; background: #222; height: 40px; border-radius: 8px; overflow: hidden; margin-top: 10px; position: relative; border: 1px solid #444; display: flex; align-items: center; }
         #mic-level { height: 100%; background: #00ff00; width: 0%; transition: width 0.05s linear; opacity: 0.8; }
         #threshold-line { position: absolute; top:0; bottom:0; width:4px; background:#ff0055; z-index:2; left: 30%; }
         
-        .calib-counter-box { position: absolute; right: 10px; color: #fff; font-family: monospace; font-size: 1.2rem; font-weight: bold; z-index: 5; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
-        
-        .scrollable { overflow-y: auto; max-height: 40vh; width: 100%; background: #111; padding: 10px; border-radius: 10px; }
+        .calib-counter-box { position: absolute; right: 10px; color: #fff; font-family: monospace; font-size: 1.2rem; font-weight: bold; z-index: 5; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; cursor: pointer; border: 1px solid #555; }
+        .calib-counter-box:active { background: #555; }
+
+        .scrollable { overflow-y: auto; max-height: 40vh; width: 90%; background: #111; padding: 10px; border-radius: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th, td { padding: 6px; border-bottom: 1px solid #333; text-align: center; }
         th { color: #888; text-transform: uppercase; font-size: 0.7rem; }
@@ -74,17 +83,17 @@
         <h1>BOXBALL PRO</h1>
         <p style="color:#aaa; font-size:0.8rem; margin-bottom: 10px;">Championship Edition</p>
         
-        <div style="width: 100%; margin-bottom: 10px; background: #1a1a1a; padding: 15px; border-radius: 10px; box-sizing: border-box;">
+        <div style="width: 90%; margin-bottom: 10px; background: #1a1a1a; padding: 15px; border-radius: 10px; box-sizing: border-box;">
             <p style="font-size:0.8rem; margin:0 0 5px 0; color:#fff; font-weight:bold;">CALIBRAR (GOLPEA PARA PROBAR)</p>
             <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#aaa;">
-                <span>Izquierda: SENSIBLE (Roces)</span>
-                <span>Derecha: DURO (Golpes fuertes)</span>
+                <span>Izquierda: Muy Sensible</span>
+                <span>Derecha: Menos Sensible</span>
             </div>
-            <input type="range" id="sensitivity" min="5" max="80" value="25" style="width:100%; margin: 10px 0;">
+            <input type="range" id="sensitivity" min="1" max="100" value="20" style="width:100%; margin: 10px 0;">
             <div class="mic-container">
                 <div id="mic-level"></div>
                 <div id="threshold-line"></div>
-                <div class="calib-counter-box"><span id="calib-counter-val">0</span> hits</div>
+                <div class="calib-counter-box" onclick="resetCalibCounter()"><span id="calib-counter-val">0</span> hits (Reset)</div>
             </div>
             <button id="btn-activate-mic" onclick="activateMicManual()" style="font-size:0.8rem; padding: 10px; margin-top:5px; background: #333; border: 1px solid #555; width:100%;">🔴 ACTIVAR MICROFONO</button>
         </div>
@@ -106,7 +115,7 @@
 
     <div id="screen-setup-tournament" class="screen">
         <h2>CONFIGURAR TORNEO</h2>
-        <div style="display:flex; gap:5px; justify-content:center; width:100%; margin-bottom:10px;">
+        <div style="display:flex; gap:5px; justify-content:center; width:90%; margin-bottom:10px;">
             <div style="flex:1;"><label style="font-size:0.8rem">Jugadores</label><br><input type="number" id="num-players" value="2" min="1" max="20" onchange="generatePlayerInputs()" style="width:50px"></div>
             <div style="flex:1;"><label style="font-size:0.8rem">Rondas</label><br><input type="number" id="num-rounds" value="3" min="1" max="10" style="width:50px"></div>
             <div style="flex:2;"><label style="font-size:0.8rem">Puntuación</label><br>
@@ -117,7 +126,7 @@
             </div>
         </div>
         <div id="player-inputs-container" class="scrollable" style="height: 150px;"></div>
-        <div style="display:flex; gap:10px; width:100%; margin-top:10px;">
+        <div style="display:flex; gap:10px; width:90%; margin-top:10px;">
             <button onclick="initTournament()" class="green">EMPEZAR</button>
             <button onclick="showScreen('screen-main')" class="secondary">VOLVER</button>
         </div>
@@ -139,7 +148,6 @@
             <p style="margin:5px">RONDA <span id="trans-round" class="highlight">1</span></p>
         </div>
         <button onclick="runCountdownAndStart()" class="green" style="font-size: 1.5rem; padding: 20px;">¡JUGAR!</button>
-        
         <div style="width: 100%; margin-top: 10px;">
             <h3 id="leaderboard-title">CLASIFICACIÓN</h3>
             <div class="scrollable" style="max-height: 20vh;">
@@ -149,18 +157,17 @@
     </div>
 
     <div id="screen-game" class="screen">
-        <div style="position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box;">
-            <span id="game-player-name" style="color:#aaa; font-weight:bold;">Jugador</span>
-            <span id="game-mode-display" style="color:#ffeb3b;"></span>
+        <div style="position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 10;">
+            <span id="game-player-name" style="color:rgba(255,255,255,0.8); font-weight:bold;">Jugador</span>
+            <span id="game-mode-display" style="color:rgba(255,255,255,0.8);"></span>
         </div>
         
-        <div id="counter">0</div>
-        <div id="timer">0.00</div>
-        
-        <div class="mic-container" style="width: 60%; opacity: 0.7;">
-            <div id="mic-level-game" style="height:100%; background:#fff; width:0%;"></div>
+        <div class="counter-circle">
+            <div id="counter">0</div>
+            <div id="timer">0.00</div>
         </div>
-        <button onclick="abortGame()" class="secondary" style="margin-top: 30px; opacity: 0.5;">CANCELAR</button>
+        
+        <button onclick="abortGame()" class="secondary" style="margin-top: 30px; opacity: 0.8; background:rgba(0,0,0,0.5); border:1px solid white;">CANCELAR</button>
     </div>
 
     <div id="screen-result" class="screen">
@@ -168,7 +175,7 @@
         <h1 id="result-score" style="font-size: 6rem; margin: 0;">0</h1>
         <p id="result-subtext" style="color:#aaa; font-size: 1rem; margin-top: -10px;">PUNTOS</p>
         <p id="record-message" style="color: #ffff00; font-size: 1.2rem; min-height: 25px; margin: 10px 0;"></p>
-        <div id="result-actions" style="width:100%"></div>
+        <div id="result-actions" style="width:90%"></div>
     </div>
 
     <script>
@@ -193,34 +200,32 @@
             const osc = sfxCtx.createOscillator();
             const gain = sfxCtx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, sfxCtx.currentTime);
-            gain.gain.setValueAtTime(0.8, sfxCtx.currentTime);
+            osc.frequency.setValueAtTime(100, sfxCtx.currentTime);
+            gain.gain.setValueAtTime(0.5, sfxCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, sfxCtx.currentTime + 0.5);
             osc.connect(gain); gain.connect(sfxCtx.destination);
             osc.start(); osc.stop(sfxCtx.currentTime + 0.5);
         }
 
         function playHitSound() {
-            // Sonido "Tick" breve y seco
-            const bufferSize = sfxCtx.sampleRate * 0.05; 
-            const buffer = sfxCtx.createBuffer(1, bufferSize, sfxCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1);
-            }
-            const noise = sfxCtx.createBufferSource();
-            noise.buffer = buffer;
+            // Sonido "Woodblock" sutil (Triangulo corto con decaimiento rápido)
+            const osc = sfxCtx.createOscillator();
             const gain = sfxCtx.createGain();
-            const filter = sfxCtx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.value = 2500;
-            gain.gain.setValueAtTime(0.8, sfxCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, sfxCtx.currentTime + 0.04);
-            noise.connect(filter); filter.connect(gain); gain.connect(sfxCtx.destination);
-            noise.start();
+            
+            osc.type = 'triangle'; // Suave, no metálico
+            // Frecuencia fija media-alta para cortar la mezcla pero sin ser estridente
+            osc.frequency.setValueAtTime(800, sfxCtx.currentTime); 
+            
+            gain.gain.setValueAtTime(0.6, sfxCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, sfxCtx.currentTime + 0.03); // 30ms duración
+            
+            osc.connect(gain);
+            gain.connect(sfxCtx.destination);
+            osc.start();
+            osc.stop(sfxCtx.currentTime + 0.03);
         }
 
-        const DB_KEY = 'boxball_db_v6';
+        const DB_KEY = 'boxball_db_v7';
         let gameState = { mode: '10s', target: 10, score: 0, startTime: 0, isPlaying: false };
         let tournamentData = null;
 
@@ -235,7 +240,6 @@
         async function initAudio() {
             if(audioContext) return;
             
-            // INTENTO 1: Configuración PRO (Baja latencia, sin filtros)
             const constraintsPro = { 
                 audio: { 
                     echoCancellation: false, 
@@ -244,22 +248,17 @@
                     latency: 'interactive'
                 }
             };
-            
-            // INTENTO 2: Configuración COMPATIBLE
             const constraintsBasic = { audio: true };
 
             try {
-                // Probamos Pro
                 const stream = await navigator.mediaDevices.getUserMedia(constraintsPro);
                 setupStream(stream);
             } catch(e) {
-                console.warn("Modo Pro falló, probando modo compatible...");
                 try {
-                    // Si falla, probamos Básico
                     const stream = await navigator.mediaDevices.getUserMedia(constraintsBasic);
                     setupStream(stream);
                 } catch(err) {
-                    alert("ERROR: No se puede acceder al micrófono. \n\n1. Asegúrate de usar HTTPS (Github Pages).\n2. Si estás en local, usa localhost.");
+                    alert("ERROR: No se puede acceder al micrófono.");
                 }
             }
         }
@@ -269,10 +268,14 @@
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             
-            // Filtro para eliminar graves
+            // FILTRO PASO BANDA (BANDPASS)
+            // Esto es la clave: Escucha solo entre ~300Hz y ~900Hz.
+            // La voz humana y el tecleo suelen tener armónicos mucho más altos.
+            // El golpe de pelota de espuma es "bofo" (medios).
             const filter = audioContext.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 1000;
+            filter.type = 'bandpass';
+            filter.frequency.value = 600; // Centro de la frecuencia de golpe
+            filter.Q.value = 1.0; // Ancho de banda
             
             microphone.connect(filter);
             filter.connect(analyser);
@@ -290,31 +293,37 @@
             calibCounter = 0;
             document.getElementById('calib-counter-val').innerText = "0";
         }
+        
+        function resetCalibCounter() {
+            calibCounter = 0;
+            document.getElementById('calib-counter-val').innerText = "0";
+        }
 
         function detectLoop() {
             requestAnimationFrame(detectLoop);
             if(!analyser) return;
             analyser.getByteFrequencyData(dataArray);
             
+            // Calcular Energía promedio del espectro filtrado
             let sum = 0;
-            for(let i = 10; i < dataArray.length; i++) sum += dataArray[i];
-            let currentEnergy = sum / (dataArray.length - 10);
+            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            let currentEnergy = sum / dataArray.length;
             
+            // Derivada (Cambio de energía)
             let impactForce = Math.max(0, currentEnergy - previousEnergy); 
             
             let sliderVal = parseInt(document.getElementById('sensitivity').value);
-            triggerThreshold = 3 + (sliderVal * 0.6); 
+            // Ajuste de sensibilidad más logarítmico para mejor control en niveles bajos
+            triggerThreshold = 2 + (sliderVal * 0.5); 
 
             if(document.getElementById('screen-main').classList.contains('active')) {
-                document.getElementById('mic-level').style.width = Math.min(impactForce * 4, 100) + '%'; 
-                document.getElementById('threshold-line').style.left = Math.min(triggerThreshold * 4, 100) + '%';
-            }
-            if(gameState.isPlaying) {
-                document.getElementById('mic-level-game').style.width = Math.min(impactForce * 3, 100) + '%'; 
+                document.getElementById('mic-level').style.width = Math.min(impactForce * 5, 100) + '%'; 
+                document.getElementById('threshold-line').style.left = Math.min(triggerThreshold * 5, 100) + '%';
             }
 
             let now = Date.now();
-            if(impactForce > triggerThreshold && (now - lastHitT > 80)) {
+            // Lockout de 60ms (algo más rápido para permitir ráfagas)
+            if(impactForce > triggerThreshold && (now - lastHitT > 60)) {
                 lastHitT = now;
                 
                 if(gameState.isPlaying) {
@@ -383,10 +392,15 @@
 
         function startGameLoop() {
             showScreen('screen-game');
+            const screenGame = document.getElementById('screen-game');
+            screenGame.className = "screen active playing"; // Fondo VERDE
+            
             gameState.score = 0;
             gameState.isPlaying = true;
             gameState.startTime = Date.now();
             document.getElementById('counter').innerText = "0";
+            document.getElementById('counter').style.color = "#2e7d32"; // Texto verde oscuro
+            
             let limit = gameState.mode === '5s' ? 5 : 10;
             let countUp = gameState.mode === '100h';
 
@@ -406,13 +420,18 @@
             gameState.isPlaying = false;
             clearInterval(window.gameInt);
             playBuzzer();
+            
+            const screenGame = document.getElementById('screen-game');
+            screenGame.className = "screen active finished"; // Fondo ROJO
+            document.getElementById('counter').style.color = "#c62828"; // Texto rojo oscuro
+            
             let val = gameState.mode === '100h' ? (Date.now() - gameState.startTime) / 1000 : gameState.score;
             setTimeout(() => {
                 showScreen('screen-result');
                 document.getElementById('result-score').innerText = gameState.mode === '100h' ? val.toFixed(2) + "s" : val;
                 speak(val + (gameState.mode === '100h' ? " segundos" : " puntos"));
                 processResults(val);
-            }, 800);
+            }, 1500); // Esperar un poco más en rojo para dramatismo
         }
 
         function processResults(val) {
